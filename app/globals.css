@@ -1,0 +1,180 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 0 0% 100%;
+  --foreground: 222.2 84% 4.9%;
+  --card: 0 0% 100%;
+  --card-foreground: 222.2 84% 4.9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222.2 84% 4.9%;
+  --primary: 12 83.3% 57.8%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 210 40% 96.1%;
+  --secondary-foreground: 222.2 47.4% 11.2%;
+  --muted: 210 40% 96.1%;
+  --muted-foreground: 215.4 16.3% 46.9%;
+  --accent: 210 40% 96.1%;
+  --accent-foreground: 222.2 47.4% 11.2%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 214.3 31.8% 91.4%;
+  --input: 214.3 31.8% 91.4%;
+  --ring: 12 83.3% 57.8%;
+  --radius: 0.75rem;
+
+  /* High contrast colors */
+  --todo-color: 220 14% 96%;
+  --inprogress-color: 199 89% 48%;
+  --done-color: 142 76% 36%;
+  --high-priority: 0 84% 60%;
+  --medium-priority: 38 92% 50%;
+  --low-priority: 220 100% 50%;
+}
+
+.dark {
+  --background: 222 47% 11%;
+  --foreground: 210 40% 98%;
+  --card: 222 47% 14%;
+  --card-foreground: 210 40% 98%;
+  --popover: 222 47% 14%;
+  --popover-foreground: 210 40% 98%;
+  --primary: 12 83.3% 57.8%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 217 32% 17%;
+  --secondary-foreground: 210 40% 98%;
+  --muted: 217 32% 17%;
+  --muted-foreground: 215 20.2% 65.1%;
+  --accent: 217 32% 17%;
+  --accent-foreground: 210 40% 98%;
+  --destructive: 0 62.8% 50.6%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 217 32% 17%;
+  --input: 217 32% 17%;
+  --ring: 12 83.3% 57.8%;
+
+  /* High contrast colors for dark mode */
+  --todo-color: 220 14% 35%;
+  --inprogress-color: 199 89% 48%;
+  --done-color: 142 76% 45%;
+  --high-priority: 0 84% 60%;
+  --medium-priority: 38 92% 50%;
+  --low-priority: 220 100% 60%;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+
+  /* Larger text for better readability */
+  html {
+    font-size: 16px;
+  }
+
+  /* Increase contrast for focus states */
+  *:focus {
+    @apply outline-2 outline-primary outline-offset-2;
+  }
+
+  /* Larger buttons for easier clicking */
+  button,
+  [role="button"] {
+    @apply min-h-10 min-w-10;
+  }
+}
+
+@layer components {
+  .glass-morphism {
+    @apply bg-background/80 backdrop-blur-md border border-white/20 shadow-lg;
+  }
+
+  .frosted-card {
+    @apply bg-white/10 backdrop-blur-md border border-white/20 shadow-lg;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  }
+
+  .frosted-panel {
+    @apply bg-background/70 backdrop-blur-md border border-white/20;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  }
+
+  .inner-shadow {
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+  }
+
+  .soft-shadow {
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  }
+
+  .text-gradient-primary {
+    @apply text-transparent bg-clip-text bg-gradient-to-r from-primary to-orange-400 font-bold;
+  }
+
+  .bg-gradient-primary {
+    @apply bg-gradient-to-r from-primary to-orange-400;
+  }
+
+  .bg-gradient-subtle {
+    @apply bg-gradient-to-br from-background to-muted;
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-in-out;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* High contrast status indicators */
+  .status-todo {
+    @apply bg-slate-300 dark:bg-slate-600 text-black dark:text-white;
+  }
+
+  .status-in-progress {
+    @apply bg-blue-500 text-white;
+  }
+
+  .status-done {
+    @apply bg-green-600 text-white;
+  }
+
+  /* Priority indicators */
+  .priority-high {
+    @apply border-l-4 border-l-red-500;
+  }
+
+  .priority-medium {
+    @apply border-l-4 border-l-amber-500;
+  }
+
+  .priority-low {
+    @apply border-l-4 border-l-blue-500;
+  }
+
+  /* Simplified button styles */
+  .btn-primary {
+    @apply bg-primary text-white font-bold py-3 px-4 rounded-xl text-base shadow-md hover:bg-primary/90 focus:ring-2 focus:ring-primary/50 focus:ring-offset-2;
+  }
+
+  .btn-secondary {
+    @apply bg-secondary text-secondary-foreground font-bold py-3 px-4 rounded-xl text-base shadow-md hover:bg-secondary/90 focus:ring-2 focus:ring-secondary/50 focus:ring-offset-2;
+  }
+
+  /* Simplified card styles */
+  .simple-card {
+    @apply bg-card rounded-xl p-4 shadow-md;
+  }
+}

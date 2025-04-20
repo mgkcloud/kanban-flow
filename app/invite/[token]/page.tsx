@@ -1,0 +1,245 @@
+"use client"
+
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
+import { useAuth } from "@/contexts/auth-context"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { FolderKanban, AlertCircle, Check } from "lucide-react"
+import { supabaseBrowserClient } from "@/lib/supabase"
+import { randomId } from "@/lib/data"
+
+export default function InvitePage({ params }: { params: { token: string } }) {
+  const { token } = params
+  const { user, isLoading: authLoading, refreshSession } = useAuth()
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [invitation, setInvitation] = useState<any | null>(null)
+  const [project, setProject] = useState<any | null>(null)
+  const [isAccepting, setIsAccepting] = useState(false)
+  const [isSuccess, setIsSuccess] = useState(false)
+  const router = useRouter()
+
+  useEffect(() => {
+    const fetchInvitation = async () => {
+      if (!token) return
+
+      setIsLoading(true)
+      setError(null)
+
+      try {
+        // Fetch invitation details
+        const { data: invitationData, error: invitationError } = await supabaseBrowserClient!
+          .from("project_invitations")
+          .select(`
+            id,
+            project_id,
+            email,
+            role,
+            expires_at,
+            projects:project_id (
+              id,
+              name
+            )
+          `)
+          .eq("token", token)
+          .single()
+
+        if (invitationError) throw invitationError
+
+        if (!invitationData) {
+          setError("Invalid or expired invitation")
+          setIsLoading(false)
+          return
+        }
+
+        // Check if invitation has expired
+        const expiresAt = new Date(invitationData.expires_at)
+        if (expiresAt < new Date()) {
+          setError("This invitation has expired")
+          setIsLoading(false)
+          return
+        }
+
+        setInvitation(invitationData)
+        setProject(invitationData.projects)
+      } catch (err) {
+        console.error("Error fetching invitation:", err)
+        setError("Failed to load invitation details")
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchInvitation()
+  }, [token])
+
+  const handleAcceptInvitation = async () => {
+    if (!invitation || !project || !user) return
+
+    setIsAccepting(true)
+    setError(null)
+
+    try {
+      // Check if user is already a member
+      const { data: existingMember, error: checkError } = await supabaseBrowserClient!
+        .from("project_members")
+        .select("id")
+        .eq("project_id", project.id)
+        .eq("user_id", user.id)
+        .maybeSingle()
+
+      if (checkError) throw checkError
+
+      if (existingMember) {
+        // User is already a member, just delete the invitation
+        const { error: deleteError } = await supabaseBrowserClient!
+          .from("project_invitations")
+          .delete()
+          .eq("id", invitation.id)
+
+        if (deleteError) throw deleteError
+
+        setIsSuccess(true)
+        setTimeout(() => router.push("/"), 2000)
+        return
+      }
+
+      // Add user as a project member
+      const { error: insertError } = await supabaseBrowserClient!.from("project_members").insert({
+        id: randomId(),
+        project_id: project.id,
+        user_id: user.id,
+        role: invitation.role,
+      })
+
+      if (insertError) throw insertError
+
+      // Delete the invitation
+      const { error: deleteError } = await supabaseBrowserClient!
+        .from("project_invitations")
+        .delete()
+        .eq("id", invitation.id)
+
+      if (deleteError) throw deleteError
+
+      setIsSuccess(true)
+      setTimeout(() => router.push("/"), 2000)
+    } catch (err) {
+      console.error("Error accepting invitation:", err)
+      setError("Failed to accept invitation")
+    } finally {
+      setIsAccepting(false)
+    }
+  }
+
+  // If not authenticated, show login prompt
+  if (!authLoading && !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-subtle p-4">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 rounded-xl bg-gradient-primary flex items-center justify-center shadow-lg mx-auto mb-4">
+              <FolderKanban size={32} className="text-white" />
+            </div>
+            <h1 className="text-3xl font-bold text-gradient-primary">Kanban Flow</h1>
+            <p className="text-muted-foreground mt-2">You've been invited to join a project</p>
+          </div>
+
+          <Card className="frosted-panel border shadow-lg">
+            <CardHeader>
+              <CardTitle className="text-xl">Sign in to accept invitation</CardTitle>
+              <CardDescription>You need to sign in to accept this invitation</CardDescription>
+            </CardHeader>
+            <CardContent className="text-center py-4">
+              <p className="mb-4">Please sign in or create an account to join this project.</p>
+              <div className="flex gap-2 justify-center">
+                <Button
+                  onClick={() => router.push(`/login?redirect=/invite/${token}`)}
+                  className="bg-gradient-primary text-white"
+                >
+                  Sign In
+                </Button>
+                <Button variant="outline" onClick={() => router.push(`/signup?redirect=/invite/${token}`)}>
+                  Create Account
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-subtle p-4">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 rounded-xl bg-gradient-primary flex items-center justify-center shadow-lg mx-auto mb-4">
+            <FolderKanban size={32} className="text-white" />
+          </div>
+          <h1 className="text-3xl font-bold text-gradient-primary">Kanban Flow</h1>
+          <p className="text-muted-foreground mt-2">Project Invitation</p>
+        </div>
+
+        <Card className="frosted-panel border shadow-lg">
+          {isLoading ? (
+            <CardContent className="text-center py-8">
+              <p>Loading invitation details...</p>
+            </CardContent>
+          ) : error ? (
+            <CardContent className="py-6">
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+              <div className="mt-4 text-center">
+                <Button variant="outline" onClick={() => router.push("/")}>
+                  Go to Dashboard
+                </Button>
+              </div>
+            </CardContent>
+          ) : isSuccess ? (
+            <CardContent className="text-center py-8">
+              <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
+                <Check className="h-6 w-6 text-green-600" />
+              </div>
+              <h3 className="text-lg font-medium mb-2">Invitation Accepted</h3>
+              <p className="text-muted-foreground mb-4">You have successfully joined the project.</p>
+              <Button onClick={() => router.push("/")}>Go to Dashboard</Button>
+            </CardContent>
+          ) : (
+            <>
+              <CardHeader>
+                <CardTitle className="text-xl">You've been invited</CardTitle>
+                <CardDescription>{invitation?.email} has been invited to join a project</CardDescription>
+              </CardHeader>
+              <CardContent className="py-4">
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-sm font-medium">Project</h3>
+                    <p className="text-lg font-semibold">{project?.name}</p>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-medium">Your Role</h3>
+                    <p className="capitalize">{invitation?.role}</p>
+                  </div>
+                </div>
+              </CardContent>
+              <CardFooter>
+                <Button
+                  className="w-full bg-gradient-primary text-white"
+                  onClick={handleAcceptInvitation}
+                  disabled={isAccepting}
+                >
+                  {isAccepting ? "Accepting..." : "Accept Invitation"}
+                </Button>
+              </CardFooter>
+            </>
+          )}
+        </Card>
+      </div>
+    </div>
+  )
+}

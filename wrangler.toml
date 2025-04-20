@@ -1,0 +1,44 @@
+name = "kanban-flow"
+main = ".open-next/worker.js"
+compatibility_date = "2024-09-23"
+compatibility_flags = [ "nodejs_compat" ]
+
+# Bind a KV namespace for Next.js cache (required by OpenNext)
+[[kv_namespaces]]
+binding = "KV_CACHE"
+id = "aab9cadac18e4ff5a7892b0b6dfd82e1"
+
+# Bind an R2 bucket for Next.js incremental cache (required by OpenNext)
+[[r2_buckets]]
+binding = "NEXT_INC_CACHE_R2_BUCKET"
+bucket_name = "kanban-flow-inc-cache" # Replace with your actual R2 bucket name
+
+# Static asset handling (corrected for Cloudflare Workers compatibility)
+[assets]
+directory = ".open-next/assets"
+
+# Configure environment variables
+[vars]
+NODE_ENV = "production"
+POSTGRES_URL="postgres://postgres.eehnntuxrpwoyxfrbimo:XTij54FD8if7qlB5@aws-0-ap-southeast-2.pooler.supabase.com:6543/postgres?sslmode=require&supa=base-pooler.x"
+POSTGRES_PRISMA_URL="postgres://postgres.eehnntuxrpwoyxfrbimo:XTij54FD8if7qlB5@aws-0-ap-southeast-2.pooler.supabase.com:6543/postgres?sslmode=require&supa=base-pooler.x"
+SUPABASE_URL="https://eehnntuxrpwoyxfrbimo.supabase.co"
+NEXT_PUBLIC_SUPABASE_URL="https://eehnntuxrpwoyxfrbimo.supabase.co"
+POSTGRES_URL_NON_POOLING="postgres://postgres.eehnntuxrpwoyxfrbimo:XTij54FD8if7qlB5@aws-0-ap-southeast-2.pooler.supabase.com:5432/postgres?sslmode=require"
+SUPABASE_JWT_SECRET="3X+jqhMFJ5If10SM4JBFtiLk1/sw6Ush9smZUYpnYAJzrPUmQ8ERQuTCudJ70252CYy+eBD0WvWzaTbM8cZZuQ=="
+POSTGRES_USER="postgres"
+NEXT_PUBLIC_SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVlaG5udHV4cnB3b3l4ZnJiaW1vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUxMzczNTEsImV4cCI6MjA2MDcxMzM1MX0.EHLxEEQ0vx7_8Xn0j1k3u2j30dT1COjWFYaGAvfDLuk"
+POSTGRES_PASSWORD="XTij54FD8if7qlB5"
+POSTGRES_DATABASE="postgres"
+SUPABASE_SERVICE_ROLE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVlaG5udHV4cnB3b3l4ZnJiaW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NTEzNzM1MSwiZXhwIjoyMDYwNzEzMzUxfQ.Jscfld4m63z6LKtkV8x0Z3YIfIf478Ib8iirBLcHzR4"
+POSTGRES_HOST="db.eehnntuxrpwoyxfrbimo.supabase.co"
+
+# Rules for ESModule handling (required for modern Next.js)
+rules = [{ type = "ESModule", globs = ["**/*.js", "**/*.mjs"] }]
+
+# Configure custom domain
+[[routes]]
+pattern = "kanban.feistyagency.com"
+custom_domain = true
+
+# Note: [build], [site], and [limits] sections are not required for OpenNext/Cloudflare Workers and have been removed for clarity.

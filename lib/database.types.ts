@@ -1,0 +1,177 @@
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
+
+export interface Database {
+  public: {
+    Tables: {
+      users: {
+        Row: {
+          id: string
+          name: string
+          email: string
+          role: "admin" | "user"
+        }
+        Insert: {
+          id: string
+          name: string
+          email: string
+          role: "admin" | "user"
+        }
+        Update: {
+          id?: string
+          name?: string
+          email?: string
+          role?: "admin" | "user"
+        }
+      }
+      projects: {
+        Row: {
+          id: string
+          name: string
+          client_name?: string | null
+          client_token: string
+          created_at: string
+        }
+        Insert: {
+          id: string
+          name: string
+          client_name?: string | null
+          client_token: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          client_name?: string | null
+          client_token?: string
+          created_at?: string
+        }
+      }
+      tasks: {
+        Row: {
+          id: string
+          title: string
+          description?: string | null
+          status: "todo" | "in-progress" | "done"
+          priority: "low" | "medium" | "high"
+          assignee_id?: string | null
+          visibility: "internal" | "public"
+          project_id: string
+          created_at: string
+          estimated_time?: number | null
+          completion_time?: number | null
+          external_id?: string | null
+          due_date?: string | null
+          tags?: string[] | null
+        }
+        Insert: {
+          id: string
+          title: string
+          description?: string | null
+          status: "todo" | "in-progress" | "done"
+          priority: "low" | "medium" | "high"
+          assignee_id?: string | null
+          visibility: "internal" | "public"
+          project_id: string
+          created_at?: string
+          estimated_time?: number | null
+          completion_time?: number | null
+          external_id?: string | null
+          due_date?: string | null
+          tags?: string[] | null
+        }
+        Update: {
+          id?: string
+          title?: string
+          description?: string | null
+          status?: "todo" | "in-progress" | "done"
+          priority?: "low" | "medium" | "high"
+          assignee_id?: string | null
+          visibility?: "internal" | "public"
+          project_id?: string
+          created_at?: string
+          estimated_time?: number | null
+          completion_time?: number | null
+          external_id?: string | null
+          due_date?: string | null
+          tags?: string[] | null
+        }
+      }
+      comments: {
+        Row: {
+          id: string
+          task_id: string
+          user_id: string
+          content: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id: string
+          task_id: string
+          user_id: string
+          content: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          task_id?: string
+          user_id?: string
+          content?: string
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      activity_logs: {
+        Row: {
+          id: string
+          project_id: string
+          task_id?: string | null
+          user_id: string
+          action_type:
+            | "task_created"
+            | "task_updated"
+            | "task_deleted"
+            | "comment_added"
+            | "status_changed"
+            | "assignee_changed"
+          details?: Json | null
+          created_at: string
+          visibility: "internal" | "public"
+        }
+        Insert: {
+          id: string
+          project_id: string
+          task_id?: string | null
+          user_id: string
+          action_type:
+            | "task_created"
+            | "task_updated"
+            | "task_deleted"
+            | "comment_added"
+            | "status_changed"
+            | "assignee_changed"
+          details?: Json | null
+          created_at?: string
+          visibility?: "internal" | "public"
+        }
+        Update: {
+          id?: string
+          project_id?: string
+          task_id?: string | null
+          user_id?: string
+          action_type?:
+            | "task_created"
+            | "task_updated"
+            | "task_deleted"
+            | "comment_added"
+            | "status_changed"
+            | "assignee_changed"
+          details?: Json | null
+          created_at?: string
+          visibility?: "internal" | "public"
+        }
+      }
+    }
+  }
+}
