@@ -53,7 +53,6 @@ export default function Home() {
   const [isCreatingProject, setIsCreatingProject] = useState(false)
 
   // --- Client view URL structure ---
-  const [url, setUrl] = useState<URL | null>(null)
   const [clientNameUrlParam, setClientNameUrlParam] = useState<string | null>(null)
   const [clientTokenUrlParam, setClientTokenUrlParam] = useState<string | null>(null)
   const [isClientView, setIsClientView] = useState(false)
@@ -160,8 +159,6 @@ export default function Home() {
   useEffect(() => {
     if (typeof window !== "undefined") {
       const currentUrl = new URL(window.location.href)
-      setUrl(currentUrl)
-
       let clientName: string | null = null
       let clientToken: string | null = null
       let isClient = false

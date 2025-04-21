@@ -7,7 +7,6 @@ export default function ClientRedirect() {
   const router = useRouter()
   const params = useParams()
   const clientName = params.clientName as string
-  const clientToken = params.clientToken as string
 
   useEffect(() => {
     // This component just ensures the client route works

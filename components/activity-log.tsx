@@ -18,7 +18,6 @@ interface ActivityLogProps {
 export function ActivityLog({ projectId, users, isClientView = false }: ActivityLogProps) {
   const [activities, setActivities] = useState<ActivityLogType[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState<string | null>(null)
 
   useEffect(() => {
@@ -32,7 +31,6 @@ export function ActivityLog({ projectId, users, isClientView = false }: Activity
         })
         setActivities(data)
       } catch (err) {
-        setError("Failed to load activity logs")
         console.error(err)
       } finally {
         setLoading(false)
@@ -108,48 +106,63 @@ export function ActivityLog({ projectId, users, isClientView = false }: Activity
         return (
           <span>
             <span className="font-medium">{userName}</span> created task{" "}
-            <span className="font-medium">"{taskTitle}"</span>
+            <span className="font-medium">&quot;{taskTitle}&quot;</span>
           </span>
         )
       case "task_updated":
         return (
           <span>
             <span className="font-medium">{userName}</span> updated task{" "}
-            <span className="font-medium">"{taskTitle}"</span>
+            <span className="font-medium">&quot;{taskTitle}&quot;</span>
           </span>
         )
       case "task_deleted":
+        const deletedTaskTitle = typeof activity.details === 'object' && activity.details !== null && 'task' in activity.details && typeof activity.details.task === 'object' && activity.details.task !== null && 'title' in activity.details.task ? (activity.details.task as { title?: string }).title : "Unknown"
         return (
           <span>
             <span className="font-medium">{userName}</span> deleted task{" "}
-            <span className="font-medium">"{activity.details?.task?.title || "Unknown"}"</span>
+            <span className="font-medium">&quot;{deletedTaskTitle || "Unknown"}&quot;</span>
           </span>
         )
       case "comment_added":
         return (
           <span>
             <span className="font-medium">{userName}</span> commented on{" "}
-            <span className="font-medium">"{taskTitle}"</span>
+            <span className="font-medium">&quot;{taskTitle}&quot;</span>
           </span>
         )
       case "status_changed":
+        let newStatus = "Unknown"
+        if (typeof activity.details === 'object' && activity.details !== null) {
+          if ('newStatus' in activity.details && typeof activity.details.newStatus === 'string') {
+            newStatus = activity.details.newStatus
+          } else if ('changes' in activity.details && typeof activity.details.changes === 'object' && activity.details.changes !== null && 'status' in activity.details.changes && typeof activity.details.changes.status === 'string') {
+            newStatus = activity.details.changes.status
+          }
+        }
         return (
           <span>
             <span className="font-medium">{userName}</span> changed status of{" "}
-            <span className="font-medium">"{taskTitle}"</span> to{" "}
+            <span className="font-medium">&quot;{taskTitle}&quot;</span> to{" "}
             <Badge variant="outline" className="ml-1">
-              {activity.details?.newStatus || activity.details?.changes?.status || "Unknown"}
+              {newStatus}
             </Badge>
           </span>
         )
       case "assignee_changed":
-        const newAssigneeId = activity.details?.newAssignee || activity.details?.changes?.assignee_id
+        let newAssigneeId: string | undefined
+        if (typeof activity.details === 'object' && activity.details !== null) {
+          if ('newAssignee' in activity.details && typeof activity.details.newAssignee === 'string') {
+            newAssigneeId = activity.details.newAssignee
+          } else if ('changes' in activity.details && typeof activity.details.changes === 'object' && activity.details.changes !== null && 'assignee_id' in activity.details.changes && typeof activity.details.changes.assignee_id === 'string') {
+            newAssigneeId = activity.details.changes.assignee_id
+          }
+        }
         const newAssignee = users.find((u) => u.id === newAssigneeId)?.name || "Unassigned"
-
         return (
           <span>
-            <span className="font-medium">{userName}</span> assigned <span className="font-medium">"{taskTitle}"</span>{" "}
-            to <span className="font-medium">{newAssignee}</span>
+            <span className="font-medium">{userName}</span> assigned <span className="font-medium">&quot;{taskTitle}&quot;</span>{" "}
+            to <span className="font-medium">&quot;{newAssignee}&quot;</span>
           </span>
         )
       default:
@@ -230,7 +243,7 @@ export function ActivityLog({ projectId, users, isClientView = false }: Activity
                         <div className="flex-1 space-y-1">
                           <div>{getActivityDescription(activity)}</div>
 
-                          {activity.action_type === "comment_added" && activity.details?.comment?.content && (
+                          {activity.action_type === "comment_added" && typeof activity.details === 'object' && activity.details !== null && 'comment' in activity.details && activity.details.comment && typeof activity.details.comment === 'object' && 'content' in activity.details.comment && typeof activity.details.comment.content === 'string' && (
                             <div className="bg-muted p-2 rounded-md text-sm mt-2">
                               {activity.details.comment.content}
                             </div>
@@ -266,8 +279,10 @@ export function ActivityLog({ projectId, users, isClientView = false }: Activity
                   <div className="flex-1 space-y-1">
                     <div>{getActivityDescription(activity)}</div>
 
-                    {activity.action_type === "comment_added" && activity.details?.comment?.content && (
-                      <div className="bg-muted p-2 rounded-md text-sm mt-2">{activity.details.comment.content}</div>
+                    {activity.action_type === "comment_added" && typeof activity.details === 'object' && activity.details !== null && 'comment' in activity.details && activity.details.comment && typeof activity.details.comment === 'object' && 'content' in activity.details.comment && typeof activity.details.comment.content === 'string' && (
+                      <div className="bg-muted p-2 rounded-md text-sm mt-2">
+                        {activity.details.comment.content}
+                      </div>
                     )}
 
                     <div className="text-xs text-muted-foreground">{timeAgo(activity.created_at)}</div>

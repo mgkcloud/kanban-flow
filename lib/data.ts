@@ -1,5 +1,6 @@
 import { supabaseBrowserClient, supabaseAdminClient } from "@/lib/supabase"
 import { randomUUID } from "crypto"
+import type { Json } from "./database.types"
 
 export type User = {
   id: string
@@ -57,7 +58,7 @@ export type ActivityLog = {
     | "comment_added"
     | "status_changed"
     | "assignee_changed"
-  details?: any
+  details?: Json
   created_at: string
   visibility: "internal" | "public"
   // Joined data
@@ -445,7 +446,7 @@ export function randomId() {
   if (typeof window === "undefined") {
     try {
       return randomUUID()
-    } catch (e) {
+    } catch {
       return Math.random().toString(36).slice(2, 10)
     }
   }

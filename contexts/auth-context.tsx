@@ -1,147 +1,83 @@
 "use client"
 
 import type React from "react"
-
 import { createContext, useContext, useEffect, useState } from "react"
-import type { User, Session } from "@supabase/supabase-js"
-import { supabaseBrowserClient } from "@/lib/supabase"
+import { useSession, signIn as nextAuthSignIn, signOut as nextAuthSignOut } from "next-auth/react"
 import { useRouter } from "next/navigation"
 
+// If you want to provision users in Supabase after login, you can keep this logic,
+// but it should not affect session state. Otherwise, remove all Supabase session/auth logic.
+// import { createClient } from "@supabase/supabase-js"
+// const supabase = createClient(
+//   process.env.NEXT_PUBLIC_SUPABASE_URL!,
+//   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+// )
+
 type AuthContextType = {
-  user: User | null
-  session: Session | null
+  user: any | null
   isLoading: boolean
-  signIn: (email: string) => Promise<{ error: Error | null }>
+  signIn: (email: string) => Promise<void>
   signOut: () => Promise<void>
-  refreshSession: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
-  const [session, setSession] = useState<Session | null>(null)
+  const { data: session, status } = useSession()
   const [isLoading, setIsLoading] = useState(true)
   const router = useRouter()
 
   useEffect(() => {
-    const supabase = supabaseBrowserClient
-    if (!supabase) return
+    setIsLoading(status === "loading")
+  }, [status])
 
-    // Check active session
-    const getSession = async () => {
-      setIsLoading(true)
-      const {
-        data: { session },
-        error,
-      } = await supabase.auth.getSession()
-
-      if (error) {
-        console.error("Error getting session:", error)
-      }
-
-      setSession(session)
-      setUser(session?.user ?? null)
-      setIsLoading(false)
-    }
-
-    getSession()
-
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session)
-      setUser(session?.user ?? null)
-      setIsLoading(false)
-    })
-
-    return () => {
-      subscription.unsubscribe()
-    }
-  }, [])
+  // Optional: Provision user in Supabase after login (does not affect session)
+  // useEffect(() => {
+  //   const provisionUserIfNeeded = async () => {
+  //     if (!session?.user?.email) return
+  //     const { data: existingUser } = await supabase
+  //       .from("users")
+  //       .select("id")
+  //       .eq("email", session.user.email)
+  //       .maybeSingle()
+  //     if (!existingUser) {
+  //       // Try to get name from localStorage (set during signup)
+  //       let name = session.user.name || session.user.email.split("@")[0]
+  //       try {
+  //         if (typeof window !== "undefined") {
+  //           const pendingName = localStorage.getItem("pending_signup_name")
+  //           if (pendingName) {
+  //             name = pendingName
+  //             localStorage.removeItem("pending_signup_name")
+  //           }
+  //         }
+  //       } catch {}
+  //       await supabase.from("users").insert({
+  //         email: session.user.email,
+  //         name,
+  //       })
+  //     }
+  //   }
+  //   if (session?.user?.email) {
+  //     provisionUserIfNeeded()
+  //   }
+  // }, [session?.user?.email, session?.user?.name])
 
   const signIn = async (email: string) => {
-    const supabase = supabaseBrowserClient
-    if (!supabase) {
-      return { error: new Error("Supabase client not available") }
-    }
-
     setIsLoading(true)
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-      },
-    })
+    await nextAuthSignIn("email", { email, callbackUrl: "/" })
     setIsLoading(false)
-
-    return { error }
   }
 
   const signOut = async () => {
-    const supabase = supabaseBrowserClient
-    if (!supabase) return
-
     setIsLoading(true)
-    await supabase.auth.signOut()
+    await nextAuthSignOut({ callbackUrl: "/login" })
     setIsLoading(false)
     router.push("/login")
   }
 
-  const refreshSession = async () => {
-    const supabase = supabaseBrowserClient
-    if (!supabase) return
-
-    const {
-      data: { session },
-    } = await supabase.auth.getSession()
-    setSession(session)
-    setUser(session?.user ?? null)
-  }
-
-  const createUserIfNeeded = async () => {
-    const supabase = supabaseBrowserClient
-    if (!user || !supabase) return
-
-    try {
-      // Check if user exists in our database
-      const { data: existingUser } = await supabase
-        .from("users")
-        .select("id")
-        .eq("email", user.email)
-        .maybeSingle()
-
-      if (existingUser) return // User already exists
-
-      // Create user via API route
-      const response = await fetch("/api/create-user", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: user.user_metadata?.name || user.email?.split("@")[0] || "User",
-          email: user.email,
-        }),
-      })
-
-      if (!response.ok) {
-        console.error("Failed to create user:", await response.text())
-      }
-    } catch (error) {
-      console.error("Error creating user:", error)
-    }
-  }
-
-  useEffect(() => {
-    if (user) {
-      createUserIfNeeded()
-    }
-  }, [user])
-
   return (
-    <AuthContext.Provider value={{ user, session, isLoading, signIn, signOut, refreshSession }}>
+    <AuthContext.Provider value={{ user: session?.user ?? null, isLoading, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   )

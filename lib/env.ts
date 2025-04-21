@@ -11,9 +11,9 @@ export function getEnv(key: string, defaultValue = ""): string {
   // For Cloudflare Workers (Edge runtime)
   if (typeof process === "undefined" || !process.env) {
     // Access env from Cloudflare Workers context
-    return (globalThis as any).process?.env?.[key] || 
+    return (globalThis as unknown as { process?: { env?: Record<string, string> }; env?: Record<string, string> }).process?.env?.[key] || 
            // Fallback to global env binding in Workers
-           (globalThis as any).env?.[key] || 
+           (globalThis as unknown as { env?: Record<string, string> }).env?.[key] || 
            defaultValue;
   }
 

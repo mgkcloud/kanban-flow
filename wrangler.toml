@@ -15,6 +15,11 @@ id = "aab9cadac18e4ff5a7892b0b6dfd82e1"
 binding = "NEXT_INC_CACHE_R2_BUCKET"
 bucket_name = "kanban-flow-inc-cache"
 
+[[d1_databases]]
+binding = "DB"
+database_name = "kanban-flow-auth"
+database_id = "64813cff-2067-4808-94c2-6c55407d0324"
+
 # Static asset handling
 [assets]
 directory = ".open-next/assets"

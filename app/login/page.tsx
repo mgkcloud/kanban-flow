@@ -27,13 +27,8 @@ export default function LoginPage() {
     }
 
     try {
-      const { error } = await signIn(email)
-
-      if (error) {
-        setError(error.message)
-      } else {
-        setIsSubmitted(true)
-      }
+      await signIn(email)
+      setIsSubmitted(true)
     } catch (err) {
       setError("An unexpected error occurred. Please try again.")
       console.error(err)
@@ -54,7 +49,7 @@ export default function LoginPage() {
         <Card className="frosted-panel border shadow-lg">
           <CardHeader>
             <CardTitle className="text-xl">Sign In</CardTitle>
-            <CardDescription>We'll send you a magic link to your email</CardDescription>
+            <CardDescription>We&apos;ll send you a magic link to your email</CardDescription>
           </CardHeader>
           <CardContent>
             {isSubmitted ? (
@@ -64,7 +59,7 @@ export default function LoginPage() {
                 </div>
                 <h3 className="text-lg font-medium mb-2">Check your inbox</h3>
                 <p className="text-muted-foreground mb-4">
-                  We've sent a magic link to <strong>{email}</strong>
+                  We&apos;ve sent a magic link to <strong>{email}</strong>
                 </p>
                 <p className="text-sm text-muted-foreground">Click the link in the email to sign in to your account.</p>
               </div>
@@ -100,7 +95,7 @@ export default function LoginPage() {
           </CardContent>
           <CardFooter className="flex justify-center border-t pt-4">
             <p className="text-sm text-muted-foreground">
-              Don't have an account?{" "}
+              Don&apos;t have an account?{" "}
               <Link href="/signup" className="text-primary font-medium hover:underline">
                 Sign up
               </Link>

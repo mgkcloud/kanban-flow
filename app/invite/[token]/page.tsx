@@ -10,14 +10,25 @@ import { FolderKanban, AlertCircle, Check } from "lucide-react"
 import { supabaseBrowserClient } from "@/lib/supabase"
 import { randomId } from "@/lib/data"
 
+type ProjectPreview = { id: string; name: string }
+
+type InvitationPreview = {
+  id: string;
+  project_id: string;
+  email: string;
+  role: "editor" | "viewer";
+  expires_at: string;
+  projects: ProjectPreview[] | ProjectPreview;
+}
+
 export default function InvitePage() {
   const params = useParams()
   const token = params.token as string
-  const { user, isLoading: authLoading, refreshSession } = useAuth()
+  const { user, isLoading: authLoading } = useAuth()
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [invitation, setInvitation] = useState<any | null>(null)
-  const [project, setProject] = useState<any | null>(null)
+  const [invitation, setInvitation] = useState<InvitationPreview | null>(null)
+  const [project, setProject] = useState<ProjectPreview | null>(null)
   const [isAccepting, setIsAccepting] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
   const router = useRouter()
@@ -64,7 +75,10 @@ export default function InvitePage() {
         }
 
         setInvitation(invitationData)
-        setProject(invitationData.projects)
+        const projectData = Array.isArray(invitationData.projects)
+          ? invitationData.projects[0] || null
+          : invitationData.projects || null
+        setProject(projectData)
       } catch (err) {
         console.error("Error fetching invitation:", err)
         setError("Failed to load invitation details")
@@ -146,7 +160,7 @@ export default function InvitePage() {
               <FolderKanban size={32} className="text-white" />
             </div>
             <h1 className="text-3xl font-bold text-gradient-primary">Kanban Flow</h1>
-            <p className="text-muted-foreground mt-2">You've been invited to join a project</p>
+            <p className="text-muted-foreground mt-2">You&apos;ve been invited to join a project</p>
           </div>
 
           <Card className="frosted-panel border shadow-lg">
@@ -214,7 +228,7 @@ export default function InvitePage() {
           ) : (
             <>
               <CardHeader>
-                <CardTitle className="text-xl">You've been invited</CardTitle>
+                <CardTitle className="text-xl">You&apos;ve been invited</CardTitle>
                 <CardDescription>{invitation?.email} has been invited to join a project</CardDescription>
               </CardHeader>
               <CardContent className="py-4">

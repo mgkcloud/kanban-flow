@@ -38,7 +38,7 @@ export function ImportTasks({ projectId, onImport, disabled = false }: ImportTas
           // Single task object
           tasks = [mapToTask(parsed, projectId)]
         }
-      } catch (jsonError) {
+      } catch {
         // Not valid JSON, try to parse as Notion export
         tasks = parseNotionExport(importText, projectId)
       }
@@ -62,40 +62,47 @@ export function ImportTasks({ projectId, onImport, disabled = false }: ImportTas
   }
 
   // Map generic object to Task type
-  const mapToTask = (item: any, projectId: string): Task => {
+  const mapToTask = (item: unknown, projectId: string): Task => {
+    const obj = item as Record<string, unknown>
     // Default values
     const task: Partial<Task> = {
-      id: item.id || "",
-      title: item.title || item.name || "Imported Task",
-      description: item.description || item.content || item.notes || "",
-      status: mapStatus(item.status),
-      priority: mapPriority(item.priority),
+      id: typeof obj.id === 'string' ? obj.id : "",
+      title: typeof obj.title === 'string' ? obj.title : typeof obj.name === 'string' ? obj.name : "Imported Task",
+      description: typeof obj.description === 'string' ? obj.description : typeof obj.content === 'string' ? obj.content : typeof obj.notes === 'string' ? obj.notes : "",
+      status: mapStatus(typeof obj.status === 'string' ? obj.status : undefined),
+      priority: mapPriority(typeof obj.priority === 'string' ? obj.priority : undefined),
       project_id: projectId,
       visibility: "public",
       created_at: new Date().toISOString(),
     }
-
     // Optional fields
-    if (item.assignee) {
-      task.assignee_id = item.assignee
+    if (typeof obj.assignee === 'string') {
+      task.assignee_id = obj.assignee
     }
-
-    if (item.tags || item.labels) {
-      task.tags = item.tags || item.labels || []
+    if (Array.isArray(obj.tags)) {
+      task.tags = obj.tags as string[]
+    } else if (Array.isArray(obj.labels)) {
+      task.tags = obj.labels as string[]
+    } else {
+      task.tags = []
     }
-
-    if (item.due_date || item.dueDate) {
-      task.due_date = item.due_date || item.dueDate
+    if (typeof obj.due_date === 'string') {
+      task.due_date = obj.due_date
+    } else if (typeof obj.dueDate === 'string') {
+      task.due_date = obj.dueDate
     }
-
-    if (item.estimated_time || item.estimatedTime) {
-      task.estimated_time = Number(item.estimated_time || item.estimatedTime) || undefined
+    if (typeof obj.estimated_time === 'number') {
+      task.estimated_time = obj.estimated_time
+    } else if (typeof obj.estimatedTime === 'number') {
+      task.estimated_time = obj.estimatedTime
     }
-
-    if (item.external_id || item.externalId || item.id) {
-      task.external_id = item.external_id || item.externalId || item.id
+    if (typeof obj.external_id === 'string') {
+      task.external_id = obj.external_id
+    } else if (typeof obj.externalId === 'string') {
+      task.external_id = obj.externalId
+    } else if (typeof obj.id === 'string') {
+      task.external_id = obj.id
     }
-
     return task as Task
   }
 
@@ -174,7 +181,7 @@ export function ImportTasks({ projectId, onImport, disabled = false }: ImportTas
           if (dueDateStr) {
             try {
               currentTask.due_date = new Date(dueDateStr).toISOString()
-            } catch (e) {
+            } catch {
               // Invalid date format, ignore
             }
           }

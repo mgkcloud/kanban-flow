@@ -10,11 +10,6 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { FolderKanban, Mail, AlertCircle } from "lucide-react"
 import Link from "next/link"
-import { supabaseBrowserClient } from "@/lib/supabase"
-
-function randomId() {
-  return Math.random().toString(36).substring(2, 15)
-}
 
 export default function SignupPage() {
   const { signIn, isLoading } = useAuth()
@@ -33,28 +28,10 @@ export default function SignupPage() {
     }
 
     try {
-      // First, sign up with Supabase Auth
-      const { error: signUpError } = await supabaseBrowserClient!.auth.signUp({
-        email,
-        password: randomId(), // Generate a random password since we're using magic links
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-          data: {
-            name,
-          },
-        },
-      })
-
-      if (signUpError) throw signUpError
-
-      // Send magic link for login
-      const { error } = await signIn(email)
-
-      if (error) {
-        setError(error.message)
-      } else {
-        setIsSubmitted(true)
-      }
+      // Optionally, store name in localStorage for later provisioning after login
+      localStorage.setItem("pending_signup_name", name)
+      await signIn(email)
+      setIsSubmitted(true)
     } catch (err) {
       console.error("Error during signup:", err)
       setError("An unexpected error occurred. Please try again.")
@@ -85,7 +62,7 @@ export default function SignupPage() {
                 </div>
                 <h3 className="text-lg font-medium mb-2">Check your inbox</h3>
                 <p className="text-muted-foreground mb-4">
-                  We've sent a magic link to <strong>{email}</strong>
+                  We&apos;ve sent a magic link to <strong>{email}</strong>
                 </p>
                 <p className="text-sm text-muted-foreground">Click the link in the email to sign in to your account.</p>
               </div>

@@ -72,7 +72,7 @@ export function ProjectSharing({ projectId, projectName, clientUrl }: ProjectSha
         if (membersError) throw membersError
 
         // Fix: Ensure user is always an object, not an array
-        const normalizedMembers = (membersData as any[]).map((m) => ({
+        const normalizedMembers = (membersData as { user: unknown }[]).map((m) => ({
           ...m,
           user: Array.isArray(m.user) ? m.user[0] : m.user,
         }))
@@ -237,7 +237,7 @@ export function ProjectSharing({ projectId, projectName, clientUrl }: ProjectSha
       </DialogTrigger>
       <DialogContent className="sm:max-w-md frosted-panel">
         <DialogHeader>
-          <DialogTitle className="text-xl">Share "{projectName}"</DialogTitle>
+          <DialogTitle className="text-xl">Share &quot;{projectName}&quot;</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-4">

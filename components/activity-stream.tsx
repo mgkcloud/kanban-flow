@@ -64,37 +64,43 @@ export function ActivityStream({ projectId, users, isClientView = false, maxItem
       case "task_created":
         return (
           <span>
-            <span className="font-medium">{userName}</span> created <span className="font-medium">"{taskTitle}"</span>
+            <span className="font-medium">{userName}</span> created <span className="font-medium">&quot;{taskTitle}&quot;</span>
           </span>
         )
       case "comment_added":
         return (
           <span>
             <span className="font-medium">{userName}</span> commented on{" "}
-            <span className="font-medium">"{taskTitle}"</span>
+            <span className="font-medium">&quot;{taskTitle}&quot;</span>
           </span>
         )
       case "status_changed":
+        let newStatus = "a new status"
+        if (typeof activity.details === 'object' && activity.details !== null && 'newStatus' in activity.details && typeof activity.details.newStatus === 'string') {
+          newStatus = activity.details.newStatus
+        }
         return (
           <span>
-            <span className="font-medium">{userName}</span> moved <span className="font-medium">"{taskTitle}"</span> to{" "}
-            <span className="font-medium">{activity.details?.newStatus || "a new status"}</span>
+            <span className="font-medium">{userName}</span> moved <span className="font-medium">&quot;{taskTitle}&quot;</span> to{" "}
+            <span className="font-medium">{newStatus}</span>
           </span>
         )
       case "assignee_changed":
-        const newAssigneeId = activity.details?.newAssignee
+        let newAssigneeId: string | undefined
+        if (typeof activity.details === 'object' && activity.details !== null && 'newAssignee' in activity.details && typeof activity.details.newAssignee === 'string') {
+          newAssigneeId = activity.details.newAssignee
+        }
         const newAssignee = users.find((u) => u.id === newAssigneeId)?.name || "someone"
-
         return (
           <span>
-            <span className="font-medium">{userName}</span> assigned <span className="font-medium">"{taskTitle}"</span>{" "}
-            to <span className="font-medium">{newAssignee}</span>
+            <span className="font-medium">{userName}</span> assigned <span className="font-medium">&quot;{taskTitle}&quot;</span>{" "}
+            to <span className="font-medium">&quot;{newAssignee}&quot;</span>
           </span>
         )
       default:
         return (
           <span>
-            <span className="font-medium">{userName}</span> updated <span className="font-medium">"{taskTitle}"</span>
+            <span className="font-medium">{userName}</span> updated <span className="font-medium">&quot;{taskTitle}&quot;</span>
           </span>
         )
     }
