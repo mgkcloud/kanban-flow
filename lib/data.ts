@@ -1,4 +1,4 @@
-import { getSupabaseClient, getAdminClient } from "@/lib/supabase"
+import { supabaseBrowserClient, supabaseAdminClient } from "@/lib/supabase"
 import { randomUUID } from "crypto"
 
 export type User = {
@@ -76,7 +76,7 @@ export const STATUS = [
 // Database operations
 export async function getUsers(): Promise<User[]> {
   try {
-    const supabase = getSupabaseClient()
+    const supabase = supabaseBrowserClient
     const { data, error } = await supabase.from("users").select("*")
 
     if (error) {
@@ -93,7 +93,7 @@ export async function getUsers(): Promise<User[]> {
 
 export async function getProjects(): Promise<Project[]> {
   try {
-    const supabase = getSupabaseClient()
+    const supabase = supabaseBrowserClient
     const { data, error } = await supabase.from("projects").select("*")
 
     if (error) {
@@ -110,7 +110,7 @@ export async function getProjects(): Promise<Project[]> {
 
 export async function getTasks(): Promise<Task[]> {
   try {
-    const supabase = getSupabaseClient()
+    const supabase = supabaseBrowserClient
     const { data, error } = await supabase.from("tasks").select("*")
 
     if (error) {
@@ -127,7 +127,7 @@ export async function getTasks(): Promise<Task[]> {
 
 export async function getTasksByProject(projectId: string): Promise<Task[]> {
   try {
-    const supabase = getSupabaseClient()
+    const supabase = supabaseBrowserClient
     const { data, error } = await supabase.from("tasks").select("*").eq("project_id", projectId)
 
     if (error) {
@@ -145,7 +145,7 @@ export async function getTasksByProject(projectId: string): Promise<Task[]> {
 export async function createTask(task: Omit<Task, "id" | "created_at">, userId: string): Promise<Task | null> {
   try {
     // Use admin client to bypass RLS
-    const supabase = getAdminClient()
+    const supabase = supabaseAdminClient()
 
     // Create a new task object with only the fields that exist in the database
     const newTask = {
@@ -201,7 +201,7 @@ export async function updateTask(
 ): Promise<Task | null> {
   try {
     // Use admin client to bypass RLS
-    const supabase = getAdminClient()
+    const supabase = supabaseAdminClient()
 
     // Check if status is changing
     let actionType: ActivityLog["action_type"] = "task_updated"
@@ -248,7 +248,7 @@ export async function updateTask(
 export async function deleteTask(id: string, userId: string, projectId: string): Promise<boolean> {
   try {
     // Use admin client to bypass RLS
-    const supabase = getAdminClient()
+    const supabase = supabaseAdminClient()
 
     // Get task before deleting for activity log
     const { data: task } = await supabase.from("tasks").select("*").eq("id", id).single()
@@ -286,7 +286,7 @@ export async function deleteTask(id: string, userId: string, projectId: string):
 // Comment functions
 export async function getCommentsByTask(taskId: string): Promise<Comment[]> {
   try {
-    const supabase = getSupabaseClient()
+    const supabase = supabaseBrowserClient
     const { data, error } = await supabase
       .from("comments")
       .select(`
@@ -314,7 +314,7 @@ export async function createComment(
   comment: Omit<Comment, "id" | "created_at" | "updated_at" | "user">,
 ): Promise<Comment | null> {
   try {
-    const supabase = getAdminClient()
+    const supabase = supabaseBrowserClient
 
     const newComment = {
       id: randomId(),
@@ -375,7 +375,7 @@ export async function getActivityLogs(
   try {
     const { limit = 50, visibility, includeUsers = true, includeTasks = true } = options
 
-    const supabase = getSupabaseClient()
+    const supabase = supabaseBrowserClient
 
     let query = supabase
       .from("activity_logs")
@@ -410,7 +410,7 @@ export async function createActivityLog(
   log: Omit<ActivityLog, "id" | "created_at" | "user" | "task">,
 ): Promise<ActivityLog | null> {
   try {
-    const supabase = getAdminClient()
+    const supabase = supabaseBrowserClient
 
     const newLog = {
       id: randomId(),

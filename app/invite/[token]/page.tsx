@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -10,8 +10,9 @@ import { FolderKanban, AlertCircle, Check } from "lucide-react"
 import { supabaseBrowserClient } from "@/lib/supabase"
 import { randomId } from "@/lib/data"
 
-export default function InvitePage({ params }: { params: { token: string } }) {
-  const { token } = params
+export default function InvitePage() {
+  const params = useParams()
+  const token = params.token as string
   const { user, isLoading: authLoading, refreshSession } = useAuth()
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -30,7 +31,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
 
       try {
         // Fetch invitation details
-        const { data: invitationData, error: invitationError } = await supabaseBrowserClient!
+        const { data: invitationData, error: invitationError } = await supabaseBrowserClient
           .from("project_invitations")
           .select(`
             id,
@@ -76,14 +77,15 @@ export default function InvitePage({ params }: { params: { token: string } }) {
   }, [token])
 
   const handleAcceptInvitation = async () => {
-    if (!invitation || !project || !user) return
+    const supabase = supabaseBrowserClient
+    if (!invitation || !project || !user || !supabase) return
 
     setIsAccepting(true)
     setError(null)
 
     try {
       // Check if user is already a member
-      const { data: existingMember, error: checkError } = await supabaseBrowserClient!
+      const { data: existingMember, error: checkError } = await supabase
         .from("project_members")
         .select("id")
         .eq("project_id", project.id)
@@ -94,7 +96,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
 
       if (existingMember) {
         // User is already a member, just delete the invitation
-        const { error: deleteError } = await supabaseBrowserClient!
+        const { error: deleteError } = await supabase
           .from("project_invitations")
           .delete()
           .eq("id", invitation.id)
@@ -107,7 +109,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
       }
 
       // Add user as a project member
-      const { error: insertError } = await supabaseBrowserClient!.from("project_members").insert({
+      const { error: insertError } = await supabase.from("project_members").insert({
         id: randomId(),
         project_id: project.id,
         user_id: user.id,
@@ -117,7 +119,7 @@ export default function InvitePage({ params }: { params: { token: string } }) {
       if (insertError) throw insertError
 
       // Delete the invitation
-      const { error: deleteError } = await supabaseBrowserClient!
+      const { error: deleteError } = await supabase
         .from("project_invitations")
         .delete()
         .eq("id", invitation.id)

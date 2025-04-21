@@ -65,8 +65,9 @@ export default function Home() {
 
       setLoading(true)
       try {
+        const supabase = supabaseBrowserClient
         // Get current user from database
-        const { data: userData, error: userError } = await supabaseBrowserClient!
+        const { data: userData, error: userError } = await supabase
           .from("users")
           .select("*")
           .eq("email", user.email)
@@ -84,7 +85,7 @@ export default function Home() {
               auth_id: user.id,
             }
 
-            const { error: insertError } = await supabaseBrowserClient!.from("users").insert(newUser)
+            const { error: insertError } = await supabase.from("users").insert(newUser)
 
             if (insertError) {
               console.error("Error creating user:", insertError)
@@ -97,7 +98,7 @@ export default function Home() {
         }
 
         // Fetch projects the user has access to
-        const { data: projectMemberships, error: membershipError } = await supabaseBrowserClient!
+        const { data: projectMemberships, error: membershipError } = await supabase
           .from("project_members")
           .select(`
             project:project_id (
@@ -113,13 +114,24 @@ export default function Home() {
         if (membershipError) {
           console.error("Error fetching project memberships:", membershipError)
         } else {
-          const userProjects = projectMemberships.map((membership) => membership.project).filter(Boolean) as Project[]
+          // TEMP: Log the actual structure for debugging
+          console.log("projectMemberships", projectMemberships)
+          // Robust mapping: handle both array and object cases
+          const userProjects = projectMemberships
+            .map((membership) => {
+              const proj = membership.project
+              if (Array.isArray(proj)) {
+                return proj[0] || null
+              }
+              return proj || null
+            })
+            .filter(Boolean)
 
           setProjects(userProjects)
         }
 
         // Fetch all users for assignments
-        const { data: usersData, error: usersError } = await supabaseBrowserClient!.from("users").select("*")
+        const { data: usersData, error: usersError } = await supabase.from("users").select("*")
 
         if (usersError) {
           console.error("Error fetching users:", usersError)
@@ -128,7 +140,7 @@ export default function Home() {
         }
 
         // Fetch tasks for all projects
-        const { data: tasksData, error: tasksError } = await supabaseBrowserClient!.from("tasks").select("*")
+        const { data: tasksData, error: tasksError } = await supabase.from("tasks").select("*")
 
         if (tasksError) {
           console.error("Error fetching tasks:", tasksError)
@@ -150,8 +162,8 @@ export default function Home() {
       const currentUrl = new URL(window.location.href)
       setUrl(currentUrl)
 
-      let clientName = null
-      let clientToken = null
+      let clientName: string | null = null
+      let clientToken: string | null = null
       let isClient = false
 
       if (currentUrl.pathname.startsWith("/client/")) {
@@ -367,8 +379,10 @@ export default function Home() {
       // Generate a client token
       const clientToken = randomId()
 
+      const supabase = supabaseBrowserClient
+
       // Create the project
-      const { data: projectData, error: projectError } = await supabaseBrowserClient!
+      const { data: projectData, error: projectError } = await supabase
         .from("projects")
         .insert({
           id: randomId(),
@@ -383,7 +397,7 @@ export default function Home() {
       if (projectError) throw projectError
 
       // Add the current user as an owner
-      const { error: memberError } = await supabaseBrowserClient!.from("project_members").insert({
+      const { error: memberError } = await supabase.from("project_members").insert({
         id: randomId(),
         project_id: projectData.id,
         user_id: currentUser.id,
@@ -536,9 +550,9 @@ export default function Home() {
                       <div className="lg:col-span-3">
                         <KanbanBoard
                           tasks={clientPublicTasks.filter((t) => t.project_id === proj.id)}
-                          statusList={STATUS}
+                          statusList={[...STATUS]}
                           users={users}
-                          currentUser={currentUser}
+                          currentUser={currentUser || undefined}
                           readonly
                         />
                       </div>
@@ -671,7 +685,7 @@ export default function Home() {
                       <div className="lg:col-span-3">
                         <KanbanBoard
                           tasks={projectTasks}
-                          statusList={STATUS}
+                          statusList={[...STATUS]}
                           users={users}
                           currentUser={currentUser || undefined}
                           onEditTask={openEdit}
@@ -733,6 +747,7 @@ export default function Home() {
                       <div>
                         <label className="block text-sm font-medium mb-1">Assignee</label>
                         <select
+                          title="Assignee"
                           className="w-full h-9 rounded-md border px-3 py-1 text-sm bg-background/50"
                           value={formState.assignee_id || ""}
                           onChange={(e) => setFormState((f) => ({ ...f, assignee_id: e.target.value || undefined }))}
@@ -749,6 +764,7 @@ export default function Home() {
                       <div>
                         <label className="block text-sm font-medium mb-1">Priority</label>
                         <select
+                          title="Priority"
                           className="w-full h-9 rounded-md border px-3 py-1 text-sm bg-background/50"
                           value={formState.priority}
                           onChange={(e) =>
@@ -795,6 +811,7 @@ export default function Home() {
                     <div>
                       <label className="block text-sm font-medium mb-1">Visibility</label>
                       <select
+                        title="Visibility"
                         className="w-full h-9 rounded-md border px-3 py-1 text-sm bg-background/50"
                         value={formState.visibility}
                         onChange={(e) =>

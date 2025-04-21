@@ -25,7 +25,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter()
 
   useEffect(() => {
-    if (!supabaseBrowserClient) return
+    const supabase = supabaseBrowserClient
+    if (!supabase) return
 
     // Check active session
     const getSession = async () => {
@@ -33,7 +34,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const {
         data: { session },
         error,
-      } = await supabaseBrowserClient.auth.getSession()
+      } = await supabase.auth.getSession()
 
       if (error) {
         console.error("Error getting session:", error)
@@ -49,7 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabaseBrowserClient.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session)
       setUser(session?.user ?? null)
       setIsLoading(false)
@@ -61,12 +62,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const signIn = async (email: string) => {
-    if (!supabaseBrowserClient) {
+    const supabase = supabaseBrowserClient
+    if (!supabase) {
       return { error: new Error("Supabase client not available") }
     }
 
     setIsLoading(true)
-    const { error } = await supabaseBrowserClient.auth.signInWithOtp({
+    const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
         emailRedirectTo: `${window.location.origin}/auth/callback`,
@@ -78,30 +80,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signOut = async () => {
-    if (!supabaseBrowserClient) return
+    const supabase = supabaseBrowserClient
+    if (!supabase) return
 
     setIsLoading(true)
-    await supabaseBrowserClient.auth.signOut()
+    await supabase.auth.signOut()
     setIsLoading(false)
     router.push("/login")
   }
 
   const refreshSession = async () => {
-    if (!supabaseBrowserClient) return
+    const supabase = supabaseBrowserClient
+    if (!supabase) return
 
     const {
       data: { session },
-    } = await supabaseBrowserClient.auth.getSession()
+    } = await supabase.auth.getSession()
     setSession(session)
     setUser(session?.user ?? null)
   }
 
   const createUserIfNeeded = async () => {
-    if (!user || !supabaseBrowserClient) return
+    const supabase = supabaseBrowserClient
+    if (!user || !supabase) return
 
     try {
       // Check if user exists in our database
-      const { data: existingUser } = await supabaseBrowserClient
+      const { data: existingUser } = await supabase
         .from("users")
         .select("id")
         .eq("email", user.email)

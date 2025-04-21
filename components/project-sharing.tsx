@@ -56,7 +56,7 @@ export function ProjectSharing({ projectId, projectName, clientUrl }: ProjectSha
 
       try {
         // Fetch project members
-        const { data: membersData, error: membersError } = await supabaseBrowserClient!
+        const { data: membersData, error: membersError } = await supabaseBrowserClient
           .from("project_members")
           .select(`
             id,
@@ -71,15 +71,21 @@ export function ProjectSharing({ projectId, projectName, clientUrl }: ProjectSha
 
         if (membersError) throw membersError
 
+        // Fix: Ensure user is always an object, not an array
+        const normalizedMembers = (membersData as any[]).map((m) => ({
+          ...m,
+          user: Array.isArray(m.user) ? m.user[0] : m.user,
+        }))
+
         // Fetch pending invitations
-        const { data: invitationsData, error: invitationsError } = await supabaseBrowserClient!
+        const { data: invitationsData, error: invitationsError } = await supabaseBrowserClient
           .from("project_invitations")
           .select("id, email, role, created_at")
           .eq("project_id", projectId)
 
         if (invitationsError) throw invitationsError
 
-        setMembers(membersData as ProjectMember[])
+        setMembers(normalizedMembers as ProjectMember[])
         setInvitations(invitationsData as ProjectInvitation[])
       } catch (err) {
         console.error("Error fetching project sharing data:", err)
@@ -119,7 +125,7 @@ export function ProjectSharing({ projectId, projectName, clientUrl }: ProjectSha
       const token = randomId()
 
       // Insert invitation
-      const { error: insertError } = await supabaseBrowserClient!.from("project_invitations").insert({
+      const { error: insertError } = await supabaseBrowserClient.from("project_invitations").insert({
         id: randomId(),
         project_id: projectId,
         email: inviteEmail,
@@ -162,7 +168,7 @@ export function ProjectSharing({ projectId, projectName, clientUrl }: ProjectSha
     if (!projectId || !user) return
 
     try {
-      const { error } = await supabaseBrowserClient!.from("project_invitations").delete().eq("id", invitationId)
+      const { error } = await supabaseBrowserClient.from("project_invitations").delete().eq("id", invitationId)
 
       if (error) throw error
 
@@ -177,7 +183,7 @@ export function ProjectSharing({ projectId, projectName, clientUrl }: ProjectSha
     if (!projectId || !user) return
 
     try {
-      const { error } = await supabaseBrowserClient!
+      const { error } = await supabaseBrowserClient
         .from("project_members")
         .update({ role: newRole })
         .eq("id", memberId)
@@ -195,7 +201,7 @@ export function ProjectSharing({ projectId, projectName, clientUrl }: ProjectSha
     if (!projectId || !user) return
 
     try {
-      const { error } = await supabaseBrowserClient!.from("project_members").delete().eq("id", memberId)
+      const { error } = await supabaseBrowserClient.from("project_members").delete().eq("id", memberId)
 
       if (error) throw error
 
@@ -270,6 +276,7 @@ export function ProjectSharing({ projectId, projectName, clientUrl }: ProjectSha
                   value={inviteRole}
                   onChange={(e) => setInviteRole(e.target.value as "editor" | "viewer")}
                   className="bg-background/50 border rounded-md px-2 text-sm"
+                  title="Select role"
                 >
                   <option value="editor">Editor</option>
                   <option value="viewer">Viewer</option>
@@ -319,6 +326,7 @@ export function ProjectSharing({ projectId, projectName, clientUrl }: ProjectSha
                             handleUpdateMemberRole(member.id, e.target.value as "owner" | "editor" | "viewer")
                           }
                           className="text-xs bg-background/50 border rounded-md px-1 py-0.5"
+                          title="Update member role"
                         >
                           <option value="owner">Owner</option>
                           <option value="editor">Editor</option>

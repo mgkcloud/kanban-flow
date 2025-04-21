@@ -1,14 +1,13 @@
 "use client"
 
 import { useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 
-export default function ClientRedirect({
-  params,
-}: {
-  params: { clientName: string; clientToken: string }
-}) {
+export default function ClientRedirect() {
   const router = useRouter()
+  const params = useParams()
+  const clientName = params.clientName as string
+  const clientToken = params.clientToken as string
 
   useEffect(() => {
     // This component just ensures the client route works
@@ -21,6 +20,7 @@ export default function ClientRedirect({
       <div className="text-center">
         <h1 className="text-2xl font-bold mb-4">Loading client view...</h1>
         <p>Redirecting to your client workspace.</p>
+        <p className="text-sm text-gray-500 mt-2">Client: {clientName}</p>
       </div>
     </div>
   )
