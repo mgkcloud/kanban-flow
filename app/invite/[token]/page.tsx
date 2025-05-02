@@ -33,6 +33,7 @@ export default function InvitePage() {
   const [isAccepting, setIsAccepting] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
   const router = useRouter()
+  const [internalUserId, setInternalUserId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchInvitation = async () => {
@@ -91,19 +92,44 @@ export default function InvitePage() {
     fetchInvitation()
   }, [token, supabase])
 
+  // Fetch internal user ID when Clerk user is loaded
+  useEffect(() => {
+    async function fetchInternalUserId() {
+      if (!user || !user.id || !supabase) return;
+      try {
+        const { data: userData, error } = await supabase
+          .from("users")
+          .select("id")
+          .eq("auth_id", user.id)
+          .single();
+        if (error) {
+          console.error("Error fetching internal user ID:", error);
+          setError("Could not verify your user account. Please try logging in again.");
+        } else if (userData) {
+          setInternalUserId(userData.id);
+        }
+      } catch (err) {
+        console.error("Exception fetching internal user ID:", err);
+        setError("An unexpected error occurred while verifying your account.");
+      }
+    }
+    fetchInternalUserId();
+  }, [user, supabase]);
+
   const handleAcceptInvitation = async () => {
-    if (!invitation || !project || !user || !user.id || !supabase) return
+    // Use internalUserId in checks
+    if (!invitation || !project || !internalUserId || !supabase) return
 
     setIsAccepting(true)
     setError(null)
 
     try {
-      // Check if user is already a member
+      // Check if user is already a member using internalUserId
       const { data: existingMember, error: checkError } = await supabase
         .from("project_members")
         .select("id")
         .eq("project_id", project.id)
-        .eq("user_id", user.id)
+        .eq("user_id", internalUserId)
         .maybeSingle()
 
       if (checkError) throw checkError
@@ -122,11 +148,11 @@ export default function InvitePage() {
         return
       }
 
-      // Add user as a project member
+      // Add user as a project member using internalUserId
       const { error: insertError } = await supabase.from("project_members").insert({
         id: randomId(),
         project_id: project.id,
-        user_id: user.id,
+        user_id: internalUserId,
         role: invitation.role,
       })
 

@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Users, Copy, AlertCircle, UserPlus, Mail, Check, X, Shield, Eye, Pencil } from "lucide-react"
 import { useSupabaseClient } from "@/lib/supabase-auth-context"
 import { useUser } from "@clerk/nextjs"
-import { randomId } from "@/lib/data"
+import { randomId, type User as InternalUser } from "@/lib/data"
 
 interface ProjectMember {
   id: string
@@ -32,9 +32,10 @@ interface ProjectSharingProps {
   projectId: string
   projectName: string
   clientUrl: string
+  currentUser: InternalUser | null
 }
 
-export function ProjectSharing({ projectId, projectName, clientUrl }: ProjectSharingProps) {
+export function ProjectSharing({ projectId, projectName, clientUrl, currentUser }: ProjectSharingProps) {
   const { user } = useUser()
   const supabase = useSupabaseClient()
   const [members, setMembers] = useState<ProjectMember[]>([])
@@ -56,38 +57,13 @@ export function ProjectSharing({ projectId, projectName, clientUrl }: ProjectSha
       setError(null)
 
       try {
-        // Fetch project members
-        const { data: membersData, error: membersError } = await supabase
-          .from("project_members")
-          .select(`
-            id,
-            user_id,
-            role,
-            user:user_id (
-              name,
-              email
-            )
-          `)
-          .eq("project_id", projectId)
-
-        if (membersError) throw membersError
-
-        // Fix: Ensure user is always an object, not an array
-        const normalizedMembers = (membersData as { user: unknown }[]).map((m) => ({
-          ...m,
-          user: Array.isArray(m.user) ? m.user[0] : m.user,
-        }))
-
-        // Fetch pending invitations
-        const { data: invitationsData, error: invitationsError } = await supabase
-          .from("project_invitations")
-          .select("id, email, role, created_at")
-          .eq("project_id", projectId)
-
-        if (invitationsError) throw invitationsError
-
-        setMembers(normalizedMembers as ProjectMember[])
-        setInvitations(invitationsData as ProjectInvitation[])
+        const res = await fetch(`/api/project-sharing?projectId=${projectId}`)
+        if (!res.ok) {
+          throw new Error(`API error ${res.status}`)
+        }
+        const json = await res.json()
+        setMembers(json.members as ProjectMember[])
+        setInvitations(json.invitations as ProjectInvitation[])
       } catch (err) {
         console.error("Error fetching project sharing data:", err)
         setError("Failed to load sharing information")
@@ -97,10 +73,10 @@ export function ProjectSharing({ projectId, projectName, clientUrl }: ProjectSha
     }
 
     fetchProjectMembers()
-  }, [projectId, user, supabase])
+  }, [projectId, user])
 
   const handleInvite = async () => {
-    if (!inviteEmail.trim() || !projectId || !user || !user.id) return
+    if (!inviteEmail.trim() || !projectId || !currentUser || !currentUser.id) return
 
     setIsSending(true)
     setError(null)
@@ -125,14 +101,14 @@ export function ProjectSharing({ projectId, projectName, clientUrl }: ProjectSha
       // Create invitation token
       const token = randomId()
 
-      // Insert invitation
+      // Insert invitation using the internal user ID
       const { error: insertError } = await supabase.from("project_invitations").insert({
         id: randomId(),
         project_id: projectId,
         email: inviteEmail,
         role: inviteRole,
         token,
-        created_by: user.id,
+        created_by: currentUser.id,
       })
 
       if (insertError) throw insertError
@@ -223,7 +199,7 @@ export function ProjectSharing({ projectId, projectName, clientUrl }: ProjectSha
     }
   }
 
-  const isCurrentUserOwner = members.some((m) => m.user_id === user?.id && m.role === "owner")
+  const isCurrentUserOwner = members.some((m) => m.user_id === currentUser?.id && m.role === "owner")
 
   return (
     <Dialog>

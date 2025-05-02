@@ -1,5 +1,4 @@
 import { createClerkSupabaseClient, supabaseAdminClient } from "@/lib/supabase"
-import { randomUUID } from "crypto"
 import type { Json } from "./database.types"
 
 export type User = {
@@ -407,15 +406,20 @@ export function getAssignee(task: Task, users: User[]) {
   return users.find((u) => u.id === task.assignee_id)
 }
 
-export function randomId() {
-  if (typeof window === "undefined") {
-    try {
-      return randomUUID()
-    } catch {
-      return Math.random().toString(36).slice(2, 10)
-    }
+export function randomId(): string {
+  // Prefer the Web Crypto API's randomUUID when available (both in modern browsers and Node.js 19+)
+  const cryptoObj = (globalThis as { crypto?: Crypto }).crypto
+  if (cryptoObj && typeof cryptoObj.randomUUID === "function") {
+    return cryptoObj.randomUUID()
   }
-  return Math.random().toString(36).slice(2, 10)
+
+  // Final fallback – generate an RFC-4122 v4 UUID using Math.random (sufficient for non-cryptographic ids)
+  const template = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx"
+  return template.replace(/[xy]/g, (c) => {
+    const r = Math.floor(Math.random() * 16)
+    const v = c === "x" ? r : (r & 0x3) | 0x8
+    return v.toString(16)
+  })
 }
 
 // Helper function to format dates

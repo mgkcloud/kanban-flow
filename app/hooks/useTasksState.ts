@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { type Task, type TaskFormState, type User, type Project, getTasks, createTask, updateTask, deleteTask } from "@/lib/data"
+import { type Task, type TaskFormState, type User, type Project, getTasks } from "@/lib/data"
 import { useSupabaseClient } from "@/lib/supabase-auth-context"
 
 export function useTasksState(currentUser: User | null, currentProject: Project | null, users: User[], session: unknown) {
@@ -30,7 +30,11 @@ export function useTasksState(currentUser: User | null, currentProject: Project 
     if (!draggedTaskId || !currentUser) return
     setTasks((prev) => prev.map((t) => (t.id === draggedTaskId ? { ...t, status } : t)))
     try {
-      await updateTask(draggedTaskId, { status }, currentUser.id)
+      await fetch(`/api/tasks/${draggedTaskId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      })
     } catch {
       // error intentionally ignored
     }
@@ -42,19 +46,27 @@ export function useTasksState(currentUser: User | null, currentProject: Project 
     if (formState.title.trim().length === 0 || !currentUser) return
     try {
       if (editTaskId) {
-        const updatedTask = await updateTask(editTaskId, formState, currentUser.id)
+        const res = await fetch(`/api/tasks/${editTaskId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(formState),
+        })
+        const updatedTask: Task | null = res.ok ? await res.json() : null
         if (updatedTask) {
           setTasks((prev) => prev.map((t) => (t.id === editTaskId ? updatedTask : t)))
         }
       } else {
         if (!currentProject) return
-        const newTask = await createTask(
-          {
+        const res = await fetch("/api/tasks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
             ...formState,
             project_id: currentProject.id,
-          },
-          currentUser.id,
-        )
+            userId: currentUser.id,
+          }),
+        })
+        const newTask: Task | null = res.ok ? await res.json() : null
         if (newTask) {
           setTasks((prev) => [...prev, newTask])
         }
@@ -79,7 +91,7 @@ export function useTasksState(currentUser: User | null, currentProject: Project 
     if (!currentUser || !currentProject) return
     setTasks((prev) => prev.filter((t) => t.id !== id))
     try {
-      await deleteTask(id, currentUser.id, currentProject.id)
+      await fetch(`/api/tasks/${id}`, { method: "DELETE" })
     } catch {
       // error intentionally ignored
     }
@@ -93,13 +105,16 @@ export function useTasksState(currentUser: User | null, currentProject: Project 
     const errors: string[] = []
     for (const task of importedTasks) {
       try {
-        const newTask = await createTask(
-          {
+        const res = await fetch("/api/tasks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
             ...task,
             project_id: task.project_id || currentProject?.id || "",
-          },
-          currentUser.id,
-        )
+            userId: currentUser.id,
+          }),
+        })
+        const newTask: Task | null = res.ok ? await res.json() : null
         if (newTask) {
           newTasks.push(newTask)
         } else {

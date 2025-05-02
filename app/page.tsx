@@ -429,6 +429,7 @@ function HomeContent() {
                       projectId={projects.find((p) => p.id === currentProjectId)?.id || ""}
                       projectName={projects.find((p) => p.id === currentProjectId)?.name || ""}
                       clientUrl={staticClientUrl}
+                      currentUser={currentUser}
                     />
                   )}
 

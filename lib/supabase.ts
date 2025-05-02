@@ -1,13 +1,5 @@
 import { createClient as createJsClient, type SupabaseClient } from "@supabase/supabase-js"
-import { createBrowserClient as createSsrBrowserClient } from "@supabase/ssr"
 import type { Database } from "./database.types"
-
-// Browser client using @supabase/ssr
-export const supabaseBrowserClient = createSsrBrowserClient<Database>(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  // No options object needed here for basic setup with ssr helper
-)
 
 // Factory for browser client with Clerk session token
 export function createClerkSupabaseClient(sessionToken: string | null): SupabaseClient<Database> {
