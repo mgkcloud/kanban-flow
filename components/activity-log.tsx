@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { MessageSquare, Clock, Plus, Trash2, Edit, User, ArrowRight, Filter } from "lucide-react"
 import { type ActivityLog as ActivityLogType, type User as UserType, getActivityLogs, timeAgo } from "@/lib/data"
+import { useSupabaseClient } from "@/lib/supabase-auth-context"
 
 interface ActivityLogProps {
   projectId: string
@@ -19,12 +20,13 @@ export function ActivityLog({ projectId, users, isClientView = false }: Activity
   const [activities, setActivities] = useState<ActivityLogType[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<string | null>(null)
+  const supabase = useSupabaseClient()
 
   useEffect(() => {
     async function fetchActivities() {
       setLoading(true)
       try {
-        const data = await getActivityLogs(projectId, {
+        const data = await getActivityLogs(supabase, projectId, {
           visibility: isClientView ? "public" : undefined,
           includeUsers: true,
           includeTasks: true,
@@ -40,7 +42,7 @@ export function ActivityLog({ projectId, users, isClientView = false }: Activity
     if (projectId) {
       fetchActivities()
     }
-  }, [projectId, isClientView])
+  }, [projectId, supabase, isClientView])
 
   // Group activities by date
   const groupedActivities: Record<string, ActivityLogType[]> = {}

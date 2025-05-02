@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Plus, MessageSquare, ArrowRight, User, RefreshCw } from "lucide-react"
 import { type ActivityLog as ActivityLogType, type User as UserType, getActivityLogs, timeAgo } from "@/lib/data"
+import { useSupabaseClient } from "@/lib/supabase-auth-context"
 
 interface ActivityStreamProps {
   projectId: string
@@ -17,12 +18,13 @@ export function ActivityStream({ projectId, users, isClientView = false, maxItem
   const [activities, setActivities] = useState<ActivityLogType[]>([])
   const [loading, setLoading] = useState(true)
   const [showMore, setShowMore] = useState(false)
+  const supabase = useSupabaseClient()
 
   useEffect(() => {
     async function fetchActivities() {
       setLoading(true)
       try {
-        const data = await getActivityLogs(projectId, {
+        const data = await getActivityLogs(supabase, projectId, {
           visibility: isClientView ? "public" : undefined,
           includeUsers: true,
           includeTasks: true,
@@ -39,7 +41,7 @@ export function ActivityStream({ projectId, users, isClientView = false, maxItem
     if (projectId) {
       fetchActivities()
     }
-  }, [projectId, isClientView])
+  }, [projectId, supabase, isClientView])
 
   const getActivityIcon = (activity: ActivityLogType) => {
     switch (activity.action_type) {

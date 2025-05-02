@@ -9,18 +9,21 @@ export interface Database {
           name: string
           email: string
           role: "admin" | "user"
+          auth_id: string
         }
         Insert: {
           id: string
           name: string
           email: string
           role: "admin" | "user"
+          auth_id: string
         }
         Update: {
           id?: string
           name?: string
           email?: string
           role?: "admin" | "user"
+          auth_id?: string
         }
       }
       projects: {

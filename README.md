@@ -34,6 +34,14 @@ This project is a Next.js application deployed to Cloudflare Workers using the O
 - Use `npm run build` to build the Next.js app.
 - Use `npm run wrangler:deploy` to deploy to Cloudflare Workers.
 
----
+## Clerk Session Best Practices
+
+- **Session Duration:**
+  - In the Clerk dashboard, set the session expiration to the maximum allowed (e.g., 30, 60, or 90 days) for long-lived, seamless user sessions.
+  - Enable "persistent sessions" or "remember me" if available.
+- **Single vs. Multi-Session Mode:**
+  - By default, Clerk uses single-session mode (one session per user per browser). If you want to allow multiple sessions (e.g., different users in different tabs), enable multi-session mode in the Clerk dashboard.
+- **App Logic:**
+  - The app will never attempt to sign in or sign up if a session already exists. Users are redirected to the dashboard if already signed in.
 
 For more details, see the official OpenNext and Cloudflare documentation. 

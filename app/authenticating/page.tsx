@@ -2,16 +2,16 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/contexts/auth-context";
+import { useUser } from "@clerk/nextjs";
 import { Loader2 } from "lucide-react";
 
 export default function AuthenticatingPage() {
-  const { user, isLoading } = useAuth();
+  const { user, isLoaded } = useUser();
   const router = useRouter();
 
   useEffect(() => {
     // Wait until auth state is determined
-    if (!isLoading) {
+    if (isLoaded) {
       if (user) {
         // User is authenticated, check for redirect param or go home
         const searchParams = new URLSearchParams(window.location.search);
@@ -23,7 +23,7 @@ export default function AuthenticatingPage() {
         router.replace("/login");
       }
     }
-  }, [user, isLoading, router]);
+  }, [user, isLoaded, router]);
 
   return (
     <div className="min-h-screen flex items-center justify-center">

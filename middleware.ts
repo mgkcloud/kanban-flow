@@ -1,2 +1,13 @@
-export { default } from "next-auth/middleware";
-export const config = { matcher: ["/((?!_next/static|_next/image|favicon.ico|images).*)"] };
+import { clerkMiddleware } from '@clerk/nextjs/server';
+
+export default clerkMiddleware(async (auth) => {
+  const authObj = await auth();
+  if (!authObj.userId) {
+    return authObj.redirectToSignIn();
+  }
+  // If authenticated, continue
+});
+
+export const config = {
+  matcher: ['/api/(.*)'],
+}; 

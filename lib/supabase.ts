@@ -9,6 +9,21 @@ export const supabaseBrowserClient = createSsrBrowserClient<Database>(
   // No options object needed here for basic setup with ssr helper
 )
 
+// Factory for browser client with Clerk session token
+export function createClerkSupabaseClient(sessionToken: string | null): SupabaseClient<Database> {
+  return createJsClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      global: {
+        headers: {
+          ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
+        },
+      },
+    }
+  )
+}
+
 // Helper for server-side/edge only
 function getServerEnvVar(name: string): string {
   if (typeof process !== 'undefined' && process.env && process.env[name]) {
@@ -28,7 +43,7 @@ export function supabaseAdminClient(): SupabaseClient<Database> {
     console.error("Missing service role key or URL for admin client");
     throw new Error("Admin client requires SUPABASE_SERVICE_ROLE_KEY");
   }
-  return createJsClient<Database>( // Use aliased base client import
+  return createJsClient<Database>(
     url,
     serviceKey,
     {

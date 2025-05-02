@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { useAuth } from "@/contexts/auth-context"
+import { useUser } from "@clerk/nextjs"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { FolderKanban, AlertCircle, Check } from "lucide-react"
-import { supabaseBrowserClient } from "@/lib/supabase"
 import { randomId } from "@/lib/data"
+import { useSupabaseClient } from "@/lib/supabase-auth-context"
 
 type ProjectPreview = { id: string; name: string }
 
@@ -24,7 +24,8 @@ type InvitationPreview = {
 export default function InvitePage() {
   const params = useParams()
   const token = params.token as string
-  const { user, isLoading: authLoading } = useAuth()
+  const { user } = useUser()
+  const supabase = useSupabaseClient();
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [invitation, setInvitation] = useState<InvitationPreview | null>(null)
@@ -41,8 +42,8 @@ export default function InvitePage() {
       setError(null)
 
       try {
-        // Fetch invitation details
-        const { data: invitationData, error: invitationError } = await supabaseBrowserClient
+        // Fetch invitation details (can remain public if intended)
+        const { data: invitationData, error: invitationError } = await supabase
           .from("project_invitations")
           .select(`
             id,
@@ -88,11 +89,10 @@ export default function InvitePage() {
     }
 
     fetchInvitation()
-  }, [token])
+  }, [token, supabase])
 
   const handleAcceptInvitation = async () => {
-    const supabase = supabaseBrowserClient
-    if (!invitation || !project || !user || !supabase) return
+    if (!invitation || !project || !user || !user.id || !supabase) return
 
     setIsAccepting(true)
     setError(null)
@@ -151,7 +151,7 @@ export default function InvitePage() {
   }
 
   // If not authenticated, show login prompt
-  if (!authLoading && !user) {
+  if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-subtle p-4">
         <div className="w-full max-w-md">

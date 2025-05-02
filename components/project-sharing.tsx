@@ -7,8 +7,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogT
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Users, Copy, AlertCircle, UserPlus, Mail, Check, X, Shield, Eye, Pencil } from "lucide-react"
-import { supabaseBrowserClient } from "@/lib/supabase"
-import { useAuth } from "@/contexts/auth-context"
+import { useSupabaseClient } from "@/lib/supabase-auth-context"
+import { useUser } from "@clerk/nextjs"
 import { randomId } from "@/lib/data"
 
 interface ProjectMember {
@@ -35,7 +35,8 @@ interface ProjectSharingProps {
 }
 
 export function ProjectSharing({ projectId, projectName, clientUrl }: ProjectSharingProps) {
-  const { user } = useAuth()
+  const { user } = useUser()
+  const supabase = useSupabaseClient()
   const [members, setMembers] = useState<ProjectMember[]>([])
   const [invitations, setInvitations] = useState<ProjectInvitation[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -48,7 +49,7 @@ export function ProjectSharing({ projectId, projectName, clientUrl }: ProjectSha
   const [isLinkCopied, setIsLinkCopied] = useState(false)
 
   useEffect(() => {
-    if (!projectId || !user) return
+    if (!projectId || !user || !user.id) return
 
     const fetchProjectMembers = async () => {
       setIsLoading(true)
@@ -56,7 +57,7 @@ export function ProjectSharing({ projectId, projectName, clientUrl }: ProjectSha
 
       try {
         // Fetch project members
-        const { data: membersData, error: membersError } = await supabaseBrowserClient
+        const { data: membersData, error: membersError } = await supabase
           .from("project_members")
           .select(`
             id,
@@ -78,7 +79,7 @@ export function ProjectSharing({ projectId, projectName, clientUrl }: ProjectSha
         }))
 
         // Fetch pending invitations
-        const { data: invitationsData, error: invitationsError } = await supabaseBrowserClient
+        const { data: invitationsData, error: invitationsError } = await supabase
           .from("project_invitations")
           .select("id, email, role, created_at")
           .eq("project_id", projectId)
@@ -96,10 +97,10 @@ export function ProjectSharing({ projectId, projectName, clientUrl }: ProjectSha
     }
 
     fetchProjectMembers()
-  }, [projectId, user])
+  }, [projectId, user, supabase])
 
   const handleInvite = async () => {
-    if (!inviteEmail.trim() || !projectId || !user) return
+    if (!inviteEmail.trim() || !projectId || !user || !user.id) return
 
     setIsSending(true)
     setError(null)
@@ -125,7 +126,7 @@ export function ProjectSharing({ projectId, projectName, clientUrl }: ProjectSha
       const token = randomId()
 
       // Insert invitation
-      const { error: insertError } = await supabaseBrowserClient.from("project_invitations").insert({
+      const { error: insertError } = await supabase.from("project_invitations").insert({
         id: randomId(),
         project_id: projectId,
         email: inviteEmail,
@@ -165,10 +166,10 @@ export function ProjectSharing({ projectId, projectName, clientUrl }: ProjectSha
   }
 
   const handleDeleteInvitation = async (invitationId: string) => {
-    if (!projectId || !user) return
+    if (!projectId || !user || !user.id) return
 
     try {
-      const { error } = await supabaseBrowserClient.from("project_invitations").delete().eq("id", invitationId)
+      const { error } = await supabase.from("project_invitations").delete().eq("id", invitationId)
 
       if (error) throw error
 
@@ -180,13 +181,10 @@ export function ProjectSharing({ projectId, projectName, clientUrl }: ProjectSha
   }
 
   const handleUpdateMemberRole = async (memberId: string, newRole: "owner" | "editor" | "viewer") => {
-    if (!projectId || !user) return
+    if (!projectId || !user || !user.id) return
 
     try {
-      const { error } = await supabaseBrowserClient
-        .from("project_members")
-        .update({ role: newRole })
-        .eq("id", memberId)
+      const { error } = await supabase.from("project_members").update({ role: newRole }).eq("id", memberId)
 
       if (error) throw error
 
@@ -198,10 +196,10 @@ export function ProjectSharing({ projectId, projectName, clientUrl }: ProjectSha
   }
 
   const handleRemoveMember = async (memberId: string) => {
-    if (!projectId || !user) return
+    if (!projectId || !user || !user.id) return
 
     try {
-      const { error } = await supabaseBrowserClient.from("project_members").delete().eq("id", memberId)
+      const { error } = await supabase.from("project_members").delete().eq("id", memberId)
 
       if (error) throw error
 

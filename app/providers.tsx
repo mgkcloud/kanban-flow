@@ -1,13 +1,17 @@
 "use client"
 
-import { SessionProvider } from "next-auth/react"
-import { AuthProvider } from "@/contexts/auth-context"
+import { ClerkProvider } from "@clerk/nextjs"
 import type { ReactNode } from "react"
+import { Toaster } from "@/components/ui/toaster"
+import ErrorBoundary from "@/components/ui/ErrorBoundary"
 
 export default function Providers({ children }: { children: ReactNode }) {
   return (
-    <SessionProvider>
-      <AuthProvider>{children}</AuthProvider>
-    </SessionProvider>
+    <ClerkProvider>
+      <ErrorBoundary>
+        {children}
+        <Toaster />
+      </ErrorBoundary>
+    </ClerkProvider>
   )
 } 

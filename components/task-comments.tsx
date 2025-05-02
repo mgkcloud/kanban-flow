@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Send, AlertCircle } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { type Comment, type User, createComment, getCommentsByTask, timeAgo } from "@/lib/data"
+import { useSupabaseClient } from "@/lib/supabase-auth-context"
 
 interface TaskCommentsProps {
   taskId: string
@@ -21,12 +22,13 @@ export function TaskComments({ taskId, currentUser }: TaskCommentsProps) {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const supabase = useSupabaseClient()
 
   useEffect(() => {
     async function fetchComments() {
       setLoading(true)
       try {
-        const data = await getCommentsByTask(taskId)
+        const data = await getCommentsByTask(supabase, taskId)
         setComments(data)
       } catch (err) {
         setError("Failed to load comments")
@@ -39,7 +41,7 @@ export function TaskComments({ taskId, currentUser }: TaskCommentsProps) {
     if (taskId) {
       fetchComments()
     }
-  }, [taskId])
+  }, [taskId, supabase])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -53,7 +55,7 @@ export function TaskComments({ taskId, currentUser }: TaskCommentsProps) {
         task_id: taskId,
         user_id: currentUser.id,
         content: newComment,
-      })
+      }, supabase)
 
       if (comment) {
         // Add user data to the comment for display
