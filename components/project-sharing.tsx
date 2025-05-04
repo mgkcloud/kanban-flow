@@ -1,15 +1,14 @@
 "use client"
 
-import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Users, Copy, AlertCircle, UserPlus, Mail, Check, X, Shield, Eye, Pencil } from "lucide-react"
-import { useSupabaseClient } from "@/lib/supabase-auth-context"
+import { Users, Copy, AlertCircle, UserPlus, Mail, Check, X } from "lucide-react"
 import { useUser } from "@clerk/nextjs"
-import { randomId, type User as InternalUser } from "@/lib/data"
+import { type User as InternalUser } from "@/lib/data"
+import { useProjectSharingLogic } from "./project-sharing-logic"
 
 interface ProjectMember {
   id: string
@@ -33,173 +32,31 @@ interface ProjectSharingProps {
   projectName: string
   clientUrl: string
   currentUser: InternalUser | null
+  sharingData: { members: ProjectMember[]; invitations: ProjectInvitation[] } | null
+  loading: boolean
+  error: string | null
 }
 
-export function ProjectSharing({ projectId, projectName, clientUrl, currentUser }: ProjectSharingProps) {
+export function ProjectSharing(props: ProjectSharingProps) {
   const { user } = useUser()
-  const supabase = useSupabaseClient()
-  const [members, setMembers] = useState<ProjectMember[]>([])
-  const [invitations, setInvitations] = useState<ProjectInvitation[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  // New invitation state
-  const [inviteEmail, setInviteEmail] = useState("")
-  const [inviteRole, setInviteRole] = useState<"editor" | "viewer">("editor")
-  const [isSending, setIsSending] = useState(false)
-  const [isLinkCopied, setIsLinkCopied] = useState(false)
-
-  useEffect(() => {
-    if (!projectId || !user || !user.id) return
-
-    const fetchProjectMembers = async () => {
-      setIsLoading(true)
-      setError(null)
-
-      try {
-        const res = await fetch(`/api/project-sharing?projectId=${projectId}`)
-        if (!res.ok) {
-          throw new Error(`API error ${res.status}`)
-        }
-        const json = await res.json()
-        setMembers(json.members as ProjectMember[])
-        setInvitations(json.invitations as ProjectInvitation[])
-      } catch (err) {
-        console.error("Error fetching project sharing data:", err)
-        setError("Failed to load sharing information")
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    fetchProjectMembers()
-  }, [projectId, user])
-
-  const handleInvite = async () => {
-    if (!inviteEmail.trim() || !projectId || !currentUser || !currentUser.id) return
-
-    setIsSending(true)
-    setError(null)
-
-    try {
-      // Check if user is already a member
-      const existingMember = members.find((m) => m.user.email.toLowerCase() === inviteEmail.toLowerCase())
-      if (existingMember) {
-        setError("This user is already a member of the project")
-        setIsSending(false)
-        return
-      }
-
-      // Check if invitation already exists
-      const existingInvitation = invitations.find((i) => i.email.toLowerCase() === inviteEmail.toLowerCase())
-      if (existingInvitation) {
-        setError("An invitation has already been sent to this email")
-        setIsSending(false)
-        return
-      }
-
-      // Create invitation token
-      const token = randomId()
-
-      // Insert invitation using the internal user ID
-      const { error: insertError } = await supabase.from("project_invitations").insert({
-        id: randomId(),
-        project_id: projectId,
-        email: inviteEmail,
-        role: inviteRole,
-        token,
-        created_by: currentUser.id,
-      })
-
-      if (insertError) throw insertError
-
-      // TODO: In a real app, send an email with the invitation link
-      // For now, we'll just add it to the UI
-      setInvitations([
-        ...invitations,
-        {
-          id: randomId(),
-          email: inviteEmail,
-          role: inviteRole,
-          created_at: new Date().toISOString(),
-        },
-      ])
-
-      // Reset form
-      setInviteEmail("")
-    } catch (err) {
-      console.error("Error sending invitation:", err)
-      setError("Failed to send invitation")
-    } finally {
-      setIsSending(false)
-    }
-  }
-
-  const handleCopyLink = () => {
-    navigator.clipboard.writeText(clientUrl)
-    setIsLinkCopied(true)
-    setTimeout(() => setIsLinkCopied(false), 2000)
-  }
-
-  const handleDeleteInvitation = async (invitationId: string) => {
-    if (!projectId || !user || !user.id) return
-
-    try {
-      const { error } = await supabase.from("project_invitations").delete().eq("id", invitationId)
-
-      if (error) throw error
-
-      setInvitations(invitations.filter((i) => i.id !== invitationId))
-    } catch (err) {
-      console.error("Error deleting invitation:", err)
-      setError("Failed to delete invitation")
-    }
-  }
-
-  const handleUpdateMemberRole = async (memberId: string, newRole: "owner" | "editor" | "viewer") => {
-    if (!projectId || !user || !user.id) return
-
-    try {
-      const { error } = await supabase.from("project_members").update({ role: newRole }).eq("id", memberId)
-
-      if (error) throw error
-
-      setMembers(members.map((m) => (m.id === memberId ? { ...m, role: newRole } : m)))
-    } catch (err) {
-      console.error("Error updating member role:", err)
-      setError("Failed to update member role")
-    }
-  }
-
-  const handleRemoveMember = async (memberId: string) => {
-    if (!projectId || !user || !user.id) return
-
-    try {
-      const { error } = await supabase.from("project_members").delete().eq("id", memberId)
-
-      if (error) throw error
-
-      setMembers(members.filter((m) => m.id !== memberId))
-    } catch (err) {
-      console.error("Error removing member:", err)
-      setError("Failed to remove member")
-    }
-  }
-
-  const getRoleIcon = (role: string) => {
-    switch (role) {
-      case "owner":
-        return <Shield size={14} className="text-primary" />
-      case "editor":
-        return <Pencil size={14} className="text-blue-500" />
-      case "viewer":
-        return <Eye size={14} className="text-green-500" />
-      default:
-        return null
-    }
-  }
-
-  const isCurrentUserOwner = members.some((m) => m.user_id === currentUser?.id && m.role === "owner")
+  const logic = useProjectSharingLogic({ ...props, user })
+  const {
+    inviteEmail,
+    setInviteEmail,
+    inviteRole,
+    setInviteRole,
+    isSending,
+    isLinkCopied,
+    handleInvite,
+    handleCopyLink,
+    members,
+    invitations,
+    handleDeleteInvitation,
+    handleUpdateMemberRole,
+    handleRemoveMember,
+    getRoleIcon,
+    isCurrentUserOwner,
+  } = logic
 
   return (
     <Dialog>
@@ -211,30 +68,25 @@ export function ProjectSharing({ projectId, projectName, clientUrl, currentUser 
       </DialogTrigger>
       <DialogContent className="sm:max-w-md frosted-panel">
         <DialogHeader>
-          <DialogTitle className="text-xl">Share &quot;{projectName}&quot;</DialogTitle>
+          <DialogTitle className="text-xl">Share &quot;{props.projectName}&quot;</DialogTitle>
         </DialogHeader>
-
         <div className="space-y-4 py-4">
-          {error && (
+          {props.error && (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
+              <AlertDescription>{props.error}</AlertDescription>
             </Alert>
           )}
-
-          {/* Client link for sharing */}
           <div className="space-y-2">
             <label className="text-sm font-medium">Client View Link</label>
             <div className="flex gap-2">
-              <Input value={clientUrl} readOnly className="bg-background/50 text-sm" />
+              <Input value={props.clientUrl} readOnly className="bg-background/50 text-sm" />
               <Button variant="outline" size="icon" onClick={handleCopyLink} className="shrink-0">
                 {isLinkCopied ? <Check size={16} /> : <Copy size={16} />}
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">Share this link with clients to give them view-only access</p>
           </div>
-
-          {/* Invite by email */}
           {isCurrentUserOwner && (
             <div className="space-y-2 pt-2 border-t">
               <label className="text-sm font-medium">Invite Team Members</label>
@@ -264,11 +116,9 @@ export function ProjectSharing({ projectId, projectName, clientUrl, currentUser 
               </p>
             </div>
           )}
-
-          {/* Current members */}
           <div className="space-y-2 pt-2 border-t">
             <h3 className="text-sm font-medium">Members</h3>
-            {isLoading ? (
+            {props.loading ? (
               <p className="text-sm text-muted-foreground">Loading...</p>
             ) : members.length === 0 ? (
               <p className="text-sm text-muted-foreground">No members yet</p>
@@ -291,7 +141,6 @@ export function ProjectSharing({ projectId, projectName, clientUrl, currentUser 
                         <span className="text-xs ml-1 capitalize">{member.role}</span>
                       </div>
                     </div>
-
                     {isCurrentUserOwner && member.user_id !== user?.id && (
                       <div className="flex items-center gap-1">
                         <select
@@ -321,8 +170,6 @@ export function ProjectSharing({ projectId, projectName, clientUrl, currentUser 
               </div>
             )}
           </div>
-
-          {/* Pending invitations */}
           {invitations.length > 0 && (
             <div className="space-y-2 pt-2 border-t">
               <h3 className="text-sm font-medium">Pending Invitations</h3>
@@ -344,7 +191,6 @@ export function ProjectSharing({ projectId, projectName, clientUrl, currentUser 
                         </div>
                       </div>
                     </div>
-
                     {isCurrentUserOwner && (
                       <Button
                         variant="ghost"
@@ -361,7 +207,6 @@ export function ProjectSharing({ projectId, projectName, clientUrl, currentUser 
             </div>
           )}
         </div>
-
         <DialogFooter>
           <Button variant="outline" className="w-full">
             Done

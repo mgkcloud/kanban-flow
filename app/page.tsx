@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { CompactSidebar } from "@/components/compact-sidebar"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { KanbanBoard } from "@/components/kanban-board"
@@ -37,6 +37,36 @@ import {
   randomId,
 } from "@/lib/data"
 
+// Add types for sharing data
+interface ProjectMember {
+  id: string
+  user_id: string
+  role: "owner" | "editor" | "viewer"
+  user: {
+    name: string
+    email: string
+  }
+}
+
+interface ProjectInvitation {
+  id: string
+  email: string
+  role: "editor" | "viewer"
+  created_at: string
+}
+
+// Add a type guard for sharing data
+function isSharingData(data: unknown): data is { members: ProjectMember[]; invitations: ProjectInvitation[] } {
+  if (
+    typeof data !== "object" ||
+    data === null ||
+    !('members' in data) ||
+    !('invitations' in data)
+  ) return false;
+  const d = data as { members: unknown; invitations: unknown };
+  return Array.isArray(d.members) && Array.isArray(d.invitations);
+}
+
 function HomeContent() {
   // All hooks at the top
   const { user } = useUser()
@@ -50,6 +80,9 @@ function HomeContent() {
   const [clientTokenUrlParam, setClientTokenUrlParam] = useState<string | null>(null)
   const [isClientView, setIsClientView] = useState(false)
   const [theme, setTheme] = useState<"light" | "dark">("dark")
+  const [sharingData, setSharingData] = useState<{ members: ProjectMember[]; invitations: ProjectInvitation[] } | null>(null)
+  const [loadingSharing, setLoadingSharing] = useState(false)
+  const [sharingError, setSharingError] = useState<string | null>(null)
 
   // Custom hooks for state management
   const { currentUser } = useCurrentUserState()
@@ -88,6 +121,38 @@ function HomeContent() {
     handleImportTasks,
     openEdit,
   } = useTasksState(currentUser, projects.find((p) => p.id === currentProjectId) || projects[0], users, session)
+
+  const fetchSharingData = useCallback(async (projectId: string) => {
+    setLoadingSharing(true)
+    setSharingError(null)
+    try {
+      const res = await fetch(`/api/project-sharing?projectId=${projectId}`)
+      if (!res.ok) throw new Error("Failed to fetch sharing data")
+      const data: unknown = await res.json()
+      if (isSharingData(data)) {
+        setSharingData({
+          members: data.members,
+          invitations: data.invitations,
+        })
+      } else {
+        throw new Error("Invalid sharing data format")
+      }
+    } catch (err: unknown) {
+      const error = err instanceof Error ? err.message : "Unknown error"
+      setSharingError(error)
+      setSharingData(null)
+    } finally {
+      setLoadingSharing(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (currentProjectId) {
+      fetchSharingData(currentProjectId)
+    } else {
+      setSharingData(null)
+    }
+  }, [currentProjectId, fetchSharingData])
 
   useEffect(() => {
     async function fetchData() {
@@ -430,6 +495,9 @@ function HomeContent() {
                       projectName={projects.find((p) => p.id === currentProjectId)?.name || ""}
                       clientUrl={staticClientUrl}
                       currentUser={currentUser}
+                      sharingData={sharingData}
+                      loading={loadingSharing}
+                      error={sharingError}
                     />
                   )}
 
