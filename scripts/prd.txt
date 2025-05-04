@@ -1,0 +1,163 @@
+<context>
+# Overview  
+Kanban Flow is a modern web-based kanban board application for task management. It provides users with a visual, intuitive way to organize, prioritize, and track tasks through a customizable workflow. The application caters to individuals, teams, and organizations seeking to improve productivity and workflow management through the kanban methodology.
+
+# Core Features  
+## Task Management
+- Create, edit, and delete tasks with various properties (title, description, due date, priority, labels, etc.)
+- Move tasks between columns representing different workflow stages via drag-and-drop
+- Filter and search tasks based on properties, assignees, or other metadata
+
+## Board Customization
+- Create and manage multiple kanban boards for different projects or workflows
+- Add, rename, reorder, and remove columns to match specific workflow needs
+- Customize column limits to prevent workflow bottlenecks
+- Apply color coding and visual indicators for task status, priority, and deadlines
+
+## User Authentication
+- Secure user registration and login
+- Role-based access control for boards and tasks
+- User profile management and personalization
+
+## Team Collaboration
+- Task assignment to team members
+- Comments and activity tracking on tasks
+- Real-time updates and notifications
+
+# User Experience  
+## User Personas
+- Individual users seeking personal task management
+- Team leads managing project workflows
+- Organizations implementing kanban methodology across departments
+
+## Key User Flows
+- Signing up and creating a first board
+- Adding tasks and organizing them into columns
+- Dragging and dropping tasks between columns
+- Collaborating with team members on shared boards
+- Filtering and searching for specific tasks
+
+## UI/UX Considerations
+- Clean, intuitive interface with minimal learning curve
+- Responsive design for desktop and mobile use
+- Accessibility for all users
+- Visual indicators for task status, priorities, and deadlines
+- Smooth animations for drag-and-drop and board updates
+</context>
+<PRD>
+# Technical Architecture  
+## Frontend
+- React as the primary UI library with TypeScript for type safety
+- Next.js for server-side rendering, routing, and API routes
+- Tailwind CSS for styling with a custom design system
+- React DnD or react-beautiful-dnd for drag-and-drop functionality
+- Client-side state management using React Context API or Redux
+- Form handling with React Hook Form
+
+## Backend
+- Next.js API routes for server-side logic
+- Supabase for database, authentication, and real-time updates
+- Clerk for enhanced authentication features
+- RESTful API design with proper error handling and validation
+
+## Data Models
+- Users: User profiles and authentication data
+- Boards: Collection of columns and tasks with metadata
+- Columns: Workflow stages within a board
+- Tasks: Individual items with properties, comments, and history
+- Comments: User feedback and notes attached to tasks
+- Activities: Audit log of actions for tracking changes
+
+## Integrations
+- Email notifications for task assignments and updates
+- Export functionality for reports and data backup
+- Webhooks for third-party integrations (future)
+
+# Development Roadmap  
+## Phase 1: Core Functionality (MVP)
+- User authentication with Clerk
+- Basic board creation and management
+- Column customization
+- Task creation, editing, and deletion
+- Drag-and-drop functionality for moving tasks
+- Basic user profile management
+
+## Phase 2: Enhanced Collaboration
+- Task assignment to users
+- Comments on tasks
+- Activity tracking and history
+- Notifications system
+- Board sharing and team management
+
+## Phase 3: Advanced Features
+- Custom fields for tasks
+- Advanced filtering and search capabilities
+- Board templates
+- Swimlanes and WIP limits
+- Analytics and reporting
+- Mobile optimization
+
+## Phase 4: Integrations and Extensions
+- External calendar integration
+- Email/Slack notifications
+- Import/export functionality
+- API for third-party extensions
+- Automation rules for task movement
+
+# Logical Dependency Chain
+1. Setup project structure and authentication
+2. Implement basic board and column management
+3. Create task CRUD operations
+4. Implement drag-and-drop functionality
+5. Add user profiles and basic settings
+6. Implement task details and properties
+7. Add collaboration features
+8. Develop notification system
+9. Implement advanced filtering and search
+10. Add analytics and reporting features
+
+# Risks and Mitigations  
+## Technical Challenges
+- **Risk**: Performance issues with large boards and many tasks
+  **Mitigation**: Implement virtualization and pagination for task lists
+
+- **Risk**: Real-time synchronization conflicts
+  **Mitigation**: Implement proper conflict resolution and optimistic UI updates
+
+- **Risk**: Mobile usability with drag-and-drop
+  **Mitigation**: Design mobile-specific interactions for task movement
+
+## MVP Scope
+- **Risk**: Feature creep extending development timeline
+  **Mitigation**: Strict prioritization of MVP features and incremental delivery
+
+- **Risk**: Overengineering simple features
+  **Mitigation**: Focus on user needs and iterate based on feedback
+
+## Resource Constraints
+- **Risk**: Limited development resources
+  **Mitigation**: Leverage existing libraries and components when possible
+
+- **Risk**: UX design complexity
+  **Mitigation**: Start with standard patterns and refine based on user testing
+
+# Appendix  
+## Key Technologies
+- React 19
+- Next.js 15
+- Supabase
+- Clerk
+- Tailwind CSS
+- TypeScript
+- React DnD
+
+## Performance Targets
+- Initial load time: < 2 seconds
+- Task drag operation: < 100ms response
+- Board switch: < 1 second
+
+## Accessibility Standards
+- WCAG 2.1 AA compliance
+- Keyboard navigation for all features
+- Screen reader compatibility
+</PRD> 

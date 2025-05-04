@@ -1,0 +1,975 @@
+---
+description: Comprehensive reference for Taskmaster MCP tools and CLI commands.
+globs: **/*
+alwaysApply: true
+---
+
+
+# Building Test Cases
+Source: https://docs.magnitude.run/core-concepts/building-test-cases
+
+How to design and build effective test cases
+
+## Test Cases
+
+Each Magnitude test case navigates to a URL in a browser, executes **Test Steps** on the web application at that URL, and verifies any **Checks** along the way.
+
+For example:
+
+```typescript
+test('can add and remove todos')
+    .step('Add a todo')
+    .step('Remove the todo')
+```
+
+<Info>A test case is designed to represent a single user flow in your web app.</Info>
+
+### Configure Test Cases
+
+Each test can additionally be configured with a different starting URL (defaults to the [configured project](/customization/configuration) `url` in `magnitude.config.ts`):
+
+```typescript
+test('can add and remove todos', { url: "https://mytodoapp.com" })
+    .step('Add a todo')
+    .step('Remove the todo')
+```
+
+## Test Steps
+
+When you define a step, you provide a description for what Magnitude should do during that step, for example:
+
+```typescript
+test('example')
+    .step('Log in') // step description
+```
+
+Each step should make sense on its own and describe a portion of the user flow.
+
+Steps should only be specific enough that it's clear from your app's interface how to complete the step. For example - to log into an app, you don't need to say type into each field or what buttons to press - just provide any necessary data and say "Log in".
+
+### Checks
+
+A **check** is a **natural language visual assertion** that you can add to any step in your test case.
+
+<Info>Think `assert` in other testing frameworks, except it can "see" the website and understand natural language descriptions.</Info>
+
+Examples of valid checks:
+
+* "Only 3 todos should be listed"
+* "Make sure image of giraffe is visible"
+* "The response from the chat bot should make sense and answer the user's question"
+
+<Info>Checks are validated after the step they are attached to is executed.</Info>
+
+To actually use a check in a test case, chain it to a `step` like this:
+
+```typescript
+test('example')
+    .step('Log in')
+        .check('Dashboard is visible')
+```
+
+### Test Data
+
+You can provide additional **test data** relevant to specific step like this:
+
+```typescript
+test('example')
+    .step('Log in')
+        .data({ email: "foo@bar.com", password: "foo" })
+        .check('Dashboard is visible')
+```
+
+<Info>The key/value pairs are completely up to you, but it should be clear enough what they should be used for.</Info>
+
+You can also provide completely freeform data by passing in a string instead of a key/value object:
+
+```typescript
+test('example')
+    .step('Add 3 todos')
+        .data('Use "Take out trash" for the first todo and make up the other 2')
+```
+
+### Example of migrating a Playwright test case to Magnitude
+
+A simple test case from the Playwright demo TODO app:
+
+```typescript
+test('should allow me to add todo items', async ({ page }) => {
+    const newTodo = page.getByPlaceholder('What needs to be done?');
+
+    await newTodo.fill(TODO_ITEMS[0]);
+    await newTodo.press('Enter');
+
+    await expect(page.getByTestId('todo-title')).toHaveText([
+        TODO_ITEMS[0]
+    ]);
+
+    await newTodo.fill(TODO_ITEMS[1]);
+    await newTodo.press('Enter');
+
+    await expect(page.getByTestId('todo-title')).toHaveText([
+        TODO_ITEMS[0],
+        TODO_ITEMS[1]
+    ]);
+  });
+```
+
+The same test case in Magnitude:
+
+```typescript
+test('should allow me to add todo items')
+    .step('Create todo')
+        .data(TODO_ITEMS[0])
+        .check('First todo appears in list')
+    .step('Create another todo')
+        .data(TODO_ITEMS[1])
+        .check('List has two todos')
+```
+
+
+# Running Tests
+Source: https://docs.magnitude.run/core-concepts/running-tests
+
+How to run test cases
+
+To run your Magnitude test cases, use the CLI:
+
+```
+npx magnitude
+```
+
+## Test in Parallel
+
+You can run your Magnitude tests in parallel simply by providing the `--workers` or `-w` flag with the desired number of parallel workers:
+
+```
+npx magnitude -w 4
+```
+
+If any Magnitude test fails, the CLI process will exit with status code 1. When deployed as part of a CI/CD pipeline e.g. with a GitHub Action, this will fail the deployment.
+
+## Test Failures
+
+Unlike existing frameworks like Playwright, the criteria for test case failure is not based on whether a selector fails or some expression evaluates false.
+
+Instead, Magnitude decides to fail a test case if either **(1) any step cannot be completed** or **(2) a check does not hold true**.
+
+It will attempt to execute a test case according to the provided steps and only fail if there is no clear way to accomplish the test case, or if any check isn't satisfied.
+
+## Integrating with CI/CD
+
+You can run Magnitude tests in CI anywhere that you could run Playwright tests, just include LLM client credentials.
+For instructions on running tests cases on GitHub actions, see [here](/integrations/github-actions).
+
+
+# Configuration
+Source: https://docs.magnitude.run/customizing/configuration
+
+Customize LLMs, browser settings, and more
+
+When you run `npx magnitude init`, a `magnitude.config.ts` will be generated for you. By default it looks something like:
+
+```typescript
+import { type MagnitudeConfig } from 'magnitude-test';
+
+export default {
+    url: "http://localhost:5173"
+} satisfies MagnitudeConfig;
+```
+
+`url` is the default URL that all test cases will use if not specified.
+
+However, there's a lot more you can customize to get Magnitude working exactly as you want.
+
+## Customizing Planner LLM
+
+You can pass a `provider` and `options` to `planner` in order to configure the planner LLM, for example:
+
+```typescript
+import { type MagnitudeConfig } from 'magnitude-test';
+
+export default {
+    url: "http://localhost:5173",
+    planner: {
+        provider: 'openai-generic',
+        options: {
+            baseUrl: "https://openrouter.ai/api/v1",
+            apiKey: process.env.OPENROUTER_API_KEY,
+            model: "google/gemini-2.5-pro-preview-03-25"
+        }
+    }
+} satisfies MagnitudeConfig;
+```
+
+The planner LLM should be a strong general purpose multi-modal model. We recommend Gemini 2.5 Pro or Claude Sonnet 3.7.
+
+For instructions on configuring LLMs with various providers, see [LLM Configuration](/reference/llm-configuration).
+
+## Browser Options
+
+You can customize options to pass to each [Playwright browser context](https://playwright.dev/docs/api/class-browser#browser-new-context) that gets created while running Magnitude tests.
+
+Common options you may want to customize might be `viewport` or even `recordVideo` to capture videos of tests. For example:
+
+```typescript
+import { type MagnitudeConfig } from 'magnitude-test';
+
+export default {
+    url: "http://localhost:5173",
+    browser: {
+        contextOptions: {
+            viewport: { width: 800, height: 600 },
+            recordVideo: {
+                dir: './videos/',
+                size: { width: 800, height: 600 }
+            }
+        }
+    }
+} satisfies MagnitudeConfig;
+```
+
+## Telemetry Opt-Out
+
+By default Magnitude collects basic anonymized telemetry when you run a test, such as the duration of the test and number of tokens used.
+
+To opt out of telemetry:
+
+```typescript
+import { type MagnitudeConfig } from 'magnitude-test';
+
+export default {
+    url: "http://localhost:5173",
+    telemetry: false
+} satisfies MagnitudeConfig;
+```
+
+
+# Self-hosting Moondream
+Source: https://docs.magnitude.run/customizing/self-hosting-moondream
+
+Use a locally running or self-deployed Moondream server
+
+If you want to run Moondream yourself, you can either:
+
+1. Run **locally** on the same machine where you're running Magnitude tests (great for development on high end machines)
+2. **Self-host** models with GPUs on a cloud platform like [Modal](https://modal.com)
+
+## Running Moondream locally
+
+To run Moondream on your local machine, first go to [https://moondream.ai/c/moondream-server](https://moondream.ai/c/moondream-server) and download the appropriate server (currently Moondream only provides macOS/Linux executables).
+
+Follow the instructions on that page to run the executable.
+
+Then you can configure `magnitude.config.ts` with the local base URL:
+
+```ts
+import { type MagnitudeConfig } from 'magnitude-test';
+
+export default {
+    url: "http://localhost:5173",
+    executor: {
+        provider: 'moondream',
+        options: {
+            baseUrl: 'http://localhost:2020/v1'
+        }
+    }
+} satisfies MagnitudeConfig;
+```
+
+That's it! Now you can run tests with local Moondream.
+
+<Warning>Local inference is very slow on CPU, newer macOS machines or a GPU is recommended for this, otherwise you may want to [deploy on modal](#self-hosting-moondream-on-modal) instead</Warning>
+
+## Self-hosting Moondream on Modal
+
+Probably the easiest way to deploy Moondream is by hosting it on Modal, so we provide a [deployment script](https://github.com/magnitudedev/magnitude/blob/main/infra/moondream.py) to do this.
+
+### Set up Modal
+
+1. Create an account at [modal.com](https://modal.com)
+2. Run `pip install modal` to install the modal Python package
+3. Run `modal setup` to authenticate (if this doesn’t work, try `python -m modal setup`)
+
+> More info: [https://modal.com/docs/guide](https://modal.com/docs/guide)
+
+<Tip> Modal gives \$30 in free credits per month.</Tip>
+
+### Deploy Moondream
+
+Clone Magnitude and run the `moondream.py` deploy script to automatically download the Moondream server and model weights to a Modal volume and deploy the endpoint:
+
+```sh
+git clone https://github.com/magnitudedev/magnitude.git
+cd magnitude/infra
+modal deploy moondream.py
+```
+
+Your Moondream endpoint will then be available at `https://<your-modal-username>--moondream.modal.run/v1`.
+
+Then you can configure `magnitude.config.ts` with this base URL and start running tests powered by your newly deployed Moondream server!
+
+```ts
+import { type MagnitudeConfig } from 'magnitude-test';
+
+export default {
+    url: "http://localhost:5173",
+    executor: {
+        provider: 'moondream',
+        options: {
+            baseUrl: 'https://<your-modal-username>--moondream.modal.run/v1'
+        }
+    }
+} satisfies MagnitudeConfig;
+```
+
+Keep in mind there may be some cold start times since Modal automatically scales down containers when not in use.
+
+<Warning> This Modal server will be publically accessible. We are working on a better way to make it configurable with a custom API key. </Warning>
+
+### Customizing Deployment
+
+You may want to customize the modal deployment depending on your needs.
+
+You can modify the `moondream.py` deployment script to fit your needs.
+
+Common options you may want to change:
+
+* `gpu`: GPU configuration. See Modal's [pricing page](https://modal.com/pricing) for details on different available GPUs and their cost. Also see [comparison](#gpu-comparison) below.
+* `scaledown_window`: Time in seconds a container will wait to shut down after receiving no requests. If higher, will let you run tests after longer without needing the container to cold-start again.
+* `min_containers`: By setting this option you force Modal to keep some number of containers open to handle requests. This means Modal will also bill you for those containers all the time, but eliminates cold-starts.
+
+### GPU Comparison
+
+Here's a breakdown of how quickly different GPUs available on Modal are able to handle typical requests that Magnitude makes to Moondream:
+
+| GPU         | Approximate inference time per action | Modal cost per hour |
+| ----------- | ------------------------------------- | ------------------- |
+| H100        | \~200ms                               | \$3.95              |
+| A100 (40GB) | \~300ms                               | \$2.10              |
+| A10G        | \~500ms                               | \$1.10              |
+| T4          | \~800ms                               | \$0.59              |
+
+Since Magnitude needs to wait a bit for the page to stabilize anyway, probably something like the A10G is a good price/performance balance, but any of these work well!
+
+
+# Introduction
+Source: https://docs.magnitude.run/getting-started/introduction
+
+Learn why Magnitude is awesome
+
+## What is Magnitude?
+
+Magnitude is an open source, AI-native testing framework for web apps.
+
+Magnitude differs from traditional test automation frameworks (like Playwright or Cypress) in that it:
+
+* 💬 Operates on natural language test cases as opposed to relying on DOM elements
+* 👁️ Uses a vision-based browser agent under the hood to execute and validate the test cases
+* 🔀 Runs test cases dynamically, adjusting to your interface as necessary
+
+You can think of Magnitude as "AI-native Playwright" and it should be used in the same scenarios that Playwright would be.
+Because of Magnitude's full vision-based approach, test cases remain resilient to changes in your interface without needing be updated.
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/getting-started/quickstart">
+    Get up and running with Magnitude
+  </Card>
+
+  <Card title="Core Concepts" icon="shapes" href="/core-concepts">
+    Learn the fundamentals of building and running Magnitude test cases
+  </Card>
+</CardGroup>
+
+## Go further
+
+Learn more about how to best utilize Magnitude in your existing workflows.
+
+<CardGroup cols={1}>
+  <Card title="Integrations" icon="cable" href="/integrations">
+    Learn how to easily integrate with the test frameworks you know and love
+  </Card>
+
+  <Card title="Reference" icon="folder-tree" href="/reference">
+    Full reference for the Magnitude SDK
+  </Card>
+</CardGroup>
+
+
+# Quickstart
+Source: https://docs.magnitude.run/getting-started/quickstart
+
+Get up and running with Magnitude
+
+## Setup
+
+**Install our test runner** in the node project you want to test (or see our [demo repo](https://github.com/magnitudedev/magnitude-demo-repo) if you don't have a project to try it on)
+
+```sh
+npm install --save-dev magnitude-test
+```
+
+**Initialize Magnitude** in your project by running:
+
+```sh
+npx magnitude init
+```
+
+This will create a basic tests directory `tests/magnitude` with:
+
+* `magnitude.config.ts`: Magnitude test configuration file
+* `example.mag.ts`: An example test file
+
+### Configure LLMs
+
+Magnitude requires setting up two LLM clients:
+
+1. 🧠 A strong general multi-modal LLM (the **"planner"**)
+2. 👁️ A fast vision LLM with pixel-precision (the **"executor"**)
+
+#### Planner Configuration
+
+For the **planner**, you can use models like Gemini 2.5 pro, Claude Sonnet 3.7, GPT 4.1, or any other model that accepts image input.
+
+Magnitude will automatically read and use any of the following API keys if configured:
+
+* `GOOGLE_APPLICATION_CREDENTIALS` (gemini-2.5-pro-preview-03-25)
+* `OPENROUTER_API_KEY` (google/gemini-2.5-pro-preview-03-25)
+* `ANTHROPIC_API_KEY` (claude-3-7-sonnet-latest)
+* `OPENAI_API_KEY` (gpt-4.1-2025-04-14)
+
+If you have any of these in your environment, no additional setup is needed for the planner. To explicitly select a specific provider and model, see [configuration](https://docs.magnitude.run/reference/llm-configuration). Currently we support Google Vertex AI, Anthropic, AWS Bedrock, OpenAI, and OpenAI-compatible providers.
+
+<Info> We strongly recommend Gemini 2.5 pro or Sonnet 3.5/3.7 for the planner model. We design the planner agent with the strongest models in mind, so other models may not work as expected.</Info>
+
+#### Executor Configuration (Moondream)
+
+Currently for the **executor** model, we only support [Moondream](https://moondream.ai/), which is a fast vision model that Magnitude uses for precise UI interactions.
+
+To configure Moondream, sign up and create an API with Moondream [here](https://moondream.ai/c/cloud/api-keys), then add to your environment as `MOONDREAM_API_KEY`. This will use the cloud version, which includes 5,000 free requests per day (roughly a few hundred test cases in Magnitude). Moondream is fully open source and self-hostable as well.
+
+🚀 Once you've got your LLMs set up, you're ready to run tests!
+
+## Running tests
+
+**Run your Magnitude tests with:**
+
+```sh
+npx magnitude
+```
+
+This will run all Magnitude test files discovered with the `*.mag.ts` pattern. If the agent finds a problem with your app, it will tell you what happened and describe the bug!
+
+> To run many tests in parallel, add `-w <workers>`
+
+To learn more about different options for running tests see [here](/core-concepts/running-tests).
+
+## Building test cases
+
+Now that you've got Magnitude set up, you can create real test cases for your app. Here's an example for a general idea:
+
+```ts
+import { test } from 'magnitude-test';
+
+test('can log in and create company')
+    .step('Log in to the app')
+        .data({ username: 'test-user@magnitude.run', password: 'test' }) // any key/values
+        .check('Can see dashboard') // natural language assertion
+    .step('Create a new company')
+        .data('Make up the first 2 values and use defaults for the rest')
+        .check('Company added successfully');
+```
+
+Steps, checks, and data are all natural language. Think of it like you're describing how to test a particular flow to a co-worker - what steps they need to take, what they should check for, and what test data to use.
+
+For more information on how to build test cases see <a href="https://docs.magnitude.run/core-concepts/building-test-cases" target="_blank">our docs.</a>
+
+
+# GitHub Actions
+Source: https://docs.magnitude.run/integrations/github-actions
+
+Run Magnitude tests with GitHub Actions
+
+You can kick off Magnitude tests from GitHub actions by:
+
+1. Ensuring that your development server is accessible in the test runner
+2. Ensuring `magnitude-test` gets installed on the test runner
+3. Running the appropriate `npx magnitude` CLI command
+4. Including the appropriate LLM client credentials (MOONDREAM\_API\_KEY + whatever you need for your planner LLM of choice).
+
+Here's an example `.githhub/workflows/magnitude.yaml`, from our our [example repo](https://github.com/magnitudedev/magnitude-demo-repo/blob/main/.github/workflows/magnitude.yaml):
+
+```yaml
+name: Run Magnitude Tests
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      MOONDREAM_API_KEY: ${{ secrets.MOONDREAM_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+      - name: Install playwright
+        run: npx playwright install chromium
+      - name: Start development server
+        run: npm run dev &
+      - name: Wait for server to start
+        run: sleep 5
+      - name: Run tests with Xvfb
+        uses: GabrielBB/xvfb-action@v1
+        with:
+          run: npx magnitude -p
+```
+
+
+# MCP
+Source: https://docs.magnitude.run/integrations/mcp
+
+Enable Cline, Cursor, or Windsurf to build and run Magnitude tests with MCP
+
+Magnitude provides an official MCP server that enables AI assistants to set up projects, build test cases, and run tests with Magnitude.
+
+<Tabs>
+  <Tab title="Cline">
+    ### Marketplace Install
+
+    To install with Cline, you can find us on the official Cline Marketplace.
+
+    Go to `MCP Servers -> Marketplace`, search for `Magnitude`, click `Install` and follow the instructions!
+
+    ### Manual Install
+
+    Alternatively, to manually install the MCP server for Cline, follow these steps:
+
+    1. Install MCP server via npm:
+
+    ```
+    npm i -g magnitude-mcp
+    ```
+
+    2. Go to `MCP Servers -> Installed -> Configure MCP Servers` and add our MCP server to the JSON:
+
+    ```json
+    {
+        "mcpServers": {
+            "magnitude": {
+                "command": "npx",
+                "args": ["magnitude-mcp"]
+            }
+        }
+    }
+    ```
+
+    Now start a new chat with Cline and ask to set up a new project with Magnitude, build new Magnitude tests, or run tests!
+  </Tab>
+
+  <Tab title="Cursor">
+    1. Install MCP server via npm:
+
+    ```
+    npm i -g magnitude-mcp
+    ```
+
+    2. Open Cursor Settings, go to Features > MCP Servers
+    3. Click "+ Add new global MCP server" and enter the following code:
+
+    ```json
+    {
+        "mcpServers": {
+            "magnitude": {
+                "command": "npx",
+                "args": ["magnitude-mcp"]
+            }
+        }
+    }
+    ```
+  </Tab>
+
+  <Tab title="Windsurf">
+    1. Install MCP server via npm:
+
+    ```
+    npm i -g magnitude-mcp
+    ```
+
+    2. Add this to your `./codeium/windsurf/model_config.json`:
+
+    ```json
+    {
+        "mcpServers": {
+            "magnitude": {
+                "command": "npx",
+                "args": ["magnitude-mcp"]
+            }
+        }
+    }
+    ```
+  </Tab>
+</Tabs>
+
+
+# Playwright
+Source: https://docs.magnitude.run/integrations/playwright
+
+Use Magnitude alongside Playwright tests
+
+Using Magnitude alongside existing E2E tests is simple.
+
+You can add Magnitude test files matching the pattern `*.mag.ts` either in your existing test folders, or in a new one.
+
+The Magnitude CLI will automatically discover these Magnitude tests.
+
+For example, if you've got both playwright and Magnitude tests, you could set up scripts to run either suite, or both:
+
+```json
+{
+    "scripts": [
+        "test:playwright": "npx playwright test",
+        "test:magnitude": "npx magnitude",
+        "test:all": "npx playwright test && npx magnitude"
+    ]
+}
+```
+
+If mixing Playwright and Magnitude tests, we recommend covering your core flows and flows that are prone to change frequently with Magnitude, and testing smaller or more stable flows that don't break as often with Playwright.
+
+<Info>You can also go all-in and replace your whole E2E test suite with Magnitude, we don't mind :)</Info>
+
+
+# Magnitude CLI
+Source: https://docs.magnitude.run/reference/cli
+
+Run Magnitude tests with the CLI
+
+Usage:
+
+```
+npx magnitude
+```
+
+### Arguments
+
+```
+Usage: magnitude [options] [command] [filter]
+
+Run Magnitude test cases
+
+Arguments:
+  filter                  glob pattern for test files (quote if contains spaces or wildcards)
+
+Options:
+  -w, --workers <number>  number of parallel workers for test execution (default: "1")
+  -p, --plain             disable pretty output and print lines instead
+  -d, --debug             enable debug logs
+  -h, --help              display help for command
+
+Commands:
+  init                    Initialize Magnitude test directory structure
+```
+
+
+# LLM Configuration
+Source: https://docs.magnitude.run/reference/llm-configuration
+
+Instructions for configuring LLMs with different providers
+
+Magnitude requires configuring two language models:
+
+1. **"Planner"** model (any good multi-modal LLM)
+2. **"Executor"** model (currently only Moondream is supported)
+
+For the **planner** model, we currently support Google Vertex AI, Anthropic, AWS Bedrock, OpenAI, and OpenAI-compatible providers.
+
+<Info>While many providers are supported, we would strongly suggest using Gemini 2.5 pro (via Vertex AI or OpenAI-compatible) or Claude Sonnet 3.7 (via Anthropic or Bedrock) for the planner.</Info>
+
+<Info>Magnitude uses [BAML](https://docs.boundaryml.com/ref/llm-client-providers/overview)'s providers under the hood, so their docs may be a useful secondary reference for credential configuration.</Info>
+
+To configure your planner model, pass one of the client interfaces described below to your `magnitude.config.ts`, like:
+
+```typescript
+import { type MagnitudeConfig } from 'magnitude-test';
+
+export default {
+    url: "http://localhost:5173",
+    planner: {
+        provider: 'anthropic', // your provider of choice
+        options: {
+            // any required + optional configuration for that provider
+            model: 'claude-3-7-sonnet-latest',
+            apiKey: process.env.ANTHROPIC_API_KEY
+        }
+    }
+} satisfies MagnitudeConfig;
+```
+
+If no planner is configured, Magnitude will pick a provider and model based on available environment variables in this order:
+
+* `GOOGLE_API_KEY`: `gemini-2.5-pro-preview-03-25`,
+* `GOOGLE_APPLICATION_CREDENTIALS`: `gemini-2.5-pro-preview-03-25`,
+* `OPENROUTER_API_KEY`: `google/gemini-2.5-pro-preview-03-25`,
+* `ANTHROPIC_API_KEY`: `claude-3-7-sonnet-latest`,
+* `OPENAI_API_KEY`: `gpt-4.1-2025-04-14`
+
+# Providers
+
+## Google AI Studio
+
+```typescript
+interface GoogleAIClient {
+    provider: 'google-ai',
+    options: {
+        model: string,
+        apiKey?: string // defaults to GOOGLE_API_KEY
+        temperature?: number,
+        baseUrl?: string // defaults to https://generativelanguage.googleapis.com/v1beta
+    }
+}
+```
+
+## Google Vertex AI
+
+```typescript
+interface GoogleVertexClient {
+    provider: 'vertex-ai',
+    options: {
+        model: string,
+        location: string,
+        baseUrl?: string,
+        projectId?: string,
+        credentials?: string | object,
+        temperature?: number,
+    }
+}
+```
+
+### Authentication
+
+The `vertex-ai` provider by default will try to authenticate using the following strategies:
+
+* if `GOOGLE_APPLICATION_CREDENTIALS` is set, it will use the specified service account
+* if you have run `gcloud auth application-default login`, it will use those credentials
+* if running in GCP, it will query the metadata server to use the attached service account
+* if `gcloud` is available on the `PATH`, it will use `gcloud auth print-access-token`
+
+If you're using Google Cloud [application default
+credentials](https://cloud.google.com/docs/authentication/application-default-credentials), you
+can expect authentication to work out of the box.
+
+Setting [`options.credentials`](#credentials) will take precedence and force `vertex-ai` to load
+service account credentials from that file path.
+
+<Info>Source: [BAML Google Vertex Provider Docs](https://docs.boundaryml.com/ref/llm-client-providers/google-vertex#authentication)</Info>
+
+## Anthropic
+
+```typescript
+interface AnthropicClient {
+    provider: 'anthropic',
+    options: {
+        model: string,
+        apiKey?: string,
+        temperature?: number
+    }   
+}
+```
+
+## OpenAI
+
+```typescript
+export interface OpenAIClient {
+    provider: 'openai',
+    options: {
+        model: string,
+        apiKey?: string,
+        temperature?: number
+    }
+}
+```
+
+## OpenAI-compatible (OpenRouter, Ollama, etc.)
+
+```typescript
+export interface OpenAIGenericClient {
+    provider: 'openai-generic'
+    options: {
+        model: string,
+        baseUrl: string,
+        apiKey?: string,
+        temperature?: number,
+        headers?: Record<string, string>
+    }
+}
+```
+
+## AWS Bedrock
+
+```typescript
+interface BedrockClient {
+    provider: 'aws-bedrock',
+    options: {
+        model: string,
+        // passed to inference_configuration
+        temperature?: number
+    }   
+}
+```
+
+Authenticate with bedrock using environment variables:
+
+```sh
+export AWS_ACCESS_KEY_ID="your_key"
+export AWS_SECRET_ACCESS_KEY="your_secret"
+export AWS_REGION="us-east-1"
+```
+
+## Azure OpenAI
+
+```typescript
+interface AzureOpenAIClient {
+    provider: 'azure-openai',
+    options: {
+        resourceName: string,
+        deploymentId: string,
+        apiVersion: string,
+        apiKey: string
+    }
+}
+```
+
+<Info>More info on authenticating with Azure: [https://docs.boundaryml.com/ref/llm-client-providers/open-ai-from-azure](https://docs.boundaryml.com/ref/llm-client-providers/open-ai-from-azure)</Info>
+
+## Configuring Moondream
+
+Moondream cloud is the easiest way to get set up, and offers 5,000 free requests per day. Get an API key [here](https://moondream.ai/c/cloud/api-keys).
+
+Moondream is open source and can also be self-hosted instead of using their cloud option. See [here](https://moondream.ai/c/moondream-server) for instructions.
+
+If self-hosting, configure the `baseUrl` to point to your server:
+
+```typescript
+import { type MagnitudeConfig } from 'magnitude-test';
+
+export default {
+    url: "http://localhost:5173",
+    executor: {
+        provider: 'moondream', // only moondream currently supported
+        options: {
+            baseUrl: 'your-self-hosted-moondream-endpoint',
+            apiKey: process.env.MOONDREAM_API_KEY // not necessary if self-hosted
+        }
+    }
+} satisfies MagnitudeConfig;
+```
+
+
+# Test Cases
+Source: https://docs.magnitude.run/reference/test-cases
+
+Define natural language test cases for Magnitude's AI agent to run.
+
+### `test(id: string, options?: TestOptions)`
+
+#### Parameters
+
+`id: string` - Descriptive identifier for the test case.
+
+`options: TestOptions` - Configure options for this test case
+
+```typescript
+TestOptions {
+    url?: string;
+}
+```
+
+#### Methods
+
+Returns: `TestCase`, which has chainable methods:
+
+* `.step(description: string)` -> [TestStep](./test-steps)
+
+## Usage
+
+```typescript
+test('can add todo')
+    .step('Add a todo item')
+```
+
+
+# Test Groups
+Source: https://docs.magnitude.run/reference/test-groups
+
+Create groups of related test cases
+
+### `test.group(groupName: string, options?: TestOptions, tests: () => void)`
+
+#### Parameters
+
+`groupName: string` - Name of the test group
+`options?: TestOptions` - Test options to apply to all test cases in the group
+`tests: () => void` - Function containing test declarations
+
+```typescript
+TestOptions {
+    url?: string;
+}
+```
+
+## Usage
+
+```typescript
+test.group("Authentication Tests", { url: "localhost:3000/login" }, () => {
+    test('can log in')
+        .step('Log in to the app')
+            .data({ email: "foo@bar.com" })
+            .secureData({ password: process.env.SUPER_SECRET_PASSWORD })
+            .check('Can see dashboard')
+
+    // more tests...
+});
+```
+
+
+# Test Steps
+Source: https://docs.magnitude.run/reference/test-steps
+
+Define individual steps in a Magnitude test case with checks and test data.
+
+### `step(description: string)`
+
+#### Parameters
+
+`description: string` - Natural language description of what should be done in this step.
+
+#### Methods
+
+Returns: `TestStep`, which has chainable methods:
+
+* `.check(description: string)` -> [TestStep](./test-steps) - Check that a statement holds true after the step is executed.
+* `.data(testData: string | Record<string, string>)` -> [TestStep](./test-steps) - Provide test data for the agent to use while executing the step
+* `.secureData(Record<string, string>)` -> [TestStep](./test-steps) - Provide sensitive test data that should be encrypted
+* `.step(description: string)` -> [TestStep](./test-steps) - create a new step in the sequence for the parent [Test Case](./test-cases)
+
+## Usage
+
+```typescript
+test('can log in and out')
+    .step('Log in to the app')
+        .data({ email: "foo@bar.com" })
+        .secureData({ password: process.env.SUPER_SECRET_PASSWORD })
+        .check('Can see dashboard')
+    .step('Log out')
+        .check("User is logged out");
+```
+
