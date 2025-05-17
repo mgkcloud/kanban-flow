@@ -4,6 +4,17 @@ import { BYPASS_CLERK } from "@/lib/dev-auth"
 import { useSupabaseClient } from "@/lib/supabase-auth-context"
 import { type Project, type User, randomId } from "@/lib/data"
 
+/**
+ * React hook for managing project state and operations for the current user, supporting both Clerk-authenticated and bypass modes.
+ *
+ * Handles fetching, creation, and selection of projects, onboarding state, and generation of a client sharing URL. Automatically creates a default project if none exist for the user.
+ *
+ * @param currentUser - The user object to use when Clerk authentication is bypassed; ignored otherwise.
+ * @returns An object containing project state, setters, onboarding and dialog controls, the current project ID, a static client URL, and a handler for creating new projects.
+ *
+ * @remark
+ * When the `BYPASS_CLERK` flag is enabled, the hook uses the provided {@link currentUser} for all operations and does not require Clerk authentication.
+ */
 export function useProjectsState(currentUser: User | null) {
   const { user } = BYPASS_CLERK ? { user: null } : useUser()
   const { session } = BYPASS_CLERK ? { session: null } : useSession()

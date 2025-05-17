@@ -4,6 +4,15 @@ import { BYPASS_CLERK, DEV_USER_EMAIL } from "@/lib/dev-auth"
 import { useSupabaseClient } from "@/lib/supabase-auth-context"
 import { type User, randomId } from "@/lib/data"
 
+/**
+ * Synchronizes and returns the current user state by integrating Clerk authentication with Supabase user records.
+ *
+ * In development mode with Clerk bypassed, retrieves the user by a predefined email from Supabase. In production, ensures a Supabase user exists for the authenticated Clerk user, creating one if necessary.
+ *
+ * @returns An object containing the current user, or `null` if no user is found or authenticated.
+ *
+ * @remark The returned user may be created in Supabase if it does not already exist for the authenticated Clerk user.
+ */
 export function useCurrentUserState() {
   const { user } = BYPASS_CLERK ? { user: null } : useUser()
   const { session } = BYPASS_CLERK ? { session: null } : useSession()
