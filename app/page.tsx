@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { useUser, useClerk, useSession } from "@clerk/nextjs"
-import { BYPASS_CLERK, DEV_USER_EMAIL } from "@/lib/dev-auth"
+import { BYPASS_CLERK } from "@/lib/dev-auth"
 import { SupabaseAuthProvider, useSupabaseClient } from "@/lib/supabase-auth-context"
 import {
   DropdownMenu,
@@ -73,6 +73,12 @@ function HomeContent() {
   const { user } = BYPASS_CLERK ? { user: null } : useUser()
   const { signOut } = BYPASS_CLERK ? { signOut: () => {} } : useClerk()
   const { session, isLoaded } = BYPASS_CLERK ? { session: null, isLoaded: true } : useSession()
+
+  // Normalised vars used throughout the component
+  const effectiveUser = user
+  const effectiveSignOut = signOut
+  const effectiveSession = session
+  const effectiveIsLoaded = isLoaded
   const supabase = useSupabaseClient()
   const [users, setUsers] = useState<User[]>([])
   const [searchQuery, setSearchQuery] = useState("")
@@ -156,8 +162,8 @@ function HomeContent() {
   }, [currentProjectId, fetchSharingData])
 
   useEffect(() => {
-    async function fetchData() {
-      if (!user || !user.id || !session) return
+      async function fetchData() {
+      if (!effectiveUser || !effectiveUser.id || !effectiveSession) return
       try {
         // First, check if this Clerk user exists in our users table
         const { data: userData, error: userError } = await supabase
@@ -271,7 +277,7 @@ function HomeContent() {
       }
     }
     fetchData()
-  }, [user, session, supabase, setProjects, setCurrentProjectId, setTasks])
+  }, [effectiveUser, effectiveSession, supabase, setProjects, setCurrentProjectId, setTasks])
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -297,7 +303,7 @@ function HomeContent() {
   }, [projects])
 
   // Only after all hooks, do the early return
-  if (!isLoaded) {
+  if (!effectiveIsLoaded) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-subtle">
         <div className="text-center frosted-panel p-8 rounded-xl animate-fade-in">
@@ -399,13 +405,13 @@ function HomeContent() {
                 </DropdownMenu>
               )}
 
-              {user && (
+              {effectiveUser && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                       <Avatar className="h-10 w-10 border">
                         <AvatarFallback className="bg-primary/10 text-primary">
-                          {user.firstName?.charAt(0).toUpperCase() || "U"}
+                          {effectiveUser.firstName?.charAt(0).toUpperCase() || "U"}
                         </AvatarFallback>
                       </Avatar>
                     </Button>
@@ -413,7 +419,7 @@ function HomeContent() {
                   <DropdownMenuContent align="end" className="frosted-panel">
                     <DropdownMenuLabel>My Account</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => signOut()}>Sign Out</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => effectiveSignOut()}>Sign Out</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               )}

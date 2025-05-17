@@ -21,6 +21,16 @@ export function useCurrentUserState() {
             .single()
           if (data) {
             setCurrentUser(data as User)
+          } else {
+            // Auto-provision a throw-away dev user so the rest of the app works
+            const newUser: User = {
+              id: randomId(),
+              name: "Dev User",
+              email: DEV_USER_EMAIL,
+              role: "admin",
+            }
+            await supabase.from("users").insert(newUser)
+            setCurrentUser(newUser)
           }
         } catch (error) {
           console.error("Error loading dev user:", error)
@@ -57,7 +67,7 @@ export function useCurrentUserState() {
       }
     }
     syncUser()
-  }, [user, session, supabase, BYPASS_CLERK, DEV_USER_EMAIL])
+  }, [user, session, supabase])
 
   return { currentUser }
 } 
