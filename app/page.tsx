@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { useUser, useClerk, useSession } from "@clerk/nextjs"
+import { BYPASS_CLERK, DEV_USER_EMAIL } from "@/lib/dev-auth"
 import { SupabaseAuthProvider, useSupabaseClient } from "@/lib/supabase-auth-context"
 import {
   DropdownMenu,
@@ -69,9 +70,9 @@ function isSharingData(data: unknown): data is { members: ProjectMember[]; invit
 
 function HomeContent() {
   // All hooks at the top
-  const { user } = useUser()
-  const { signOut } = useClerk()
-  const { session, isLoaded } = useSession()
+  const { user } = BYPASS_CLERK ? { user: null } : useUser()
+  const { signOut } = BYPASS_CLERK ? { signOut: () => {} } : useClerk()
+  const { session, isLoaded } = BYPASS_CLERK ? { session: null, isLoaded: true } : useSession()
   const supabase = useSupabaseClient()
   const [users, setUsers] = useState<User[]>([])
   const [searchQuery, setSearchQuery] = useState("")

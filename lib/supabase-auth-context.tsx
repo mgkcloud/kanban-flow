@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react"
 import { createClient as createJsClient, type SupabaseClient } from "@supabase/supabase-js"
 import { useSession } from "@clerk/nextjs"
+import { BYPASS_CLERK } from "./dev-auth"
 import type { Database } from "./database.types"
 
 // Type for the context value, allowing null when not ready
@@ -8,7 +9,7 @@ type SupabaseContextType = SupabaseClient<Database> | null;
 const SupabaseClientContext = createContext<SupabaseContextType>(null)
 
 export function SupabaseAuthProvider({ children }: { children: React.ReactNode }) {
-  const { session, isLoaded: isClerkLoaded } = useSession()
+  const { session, isLoaded: isClerkLoaded } = BYPASS_CLERK ? { session: null, isLoaded: true } : useSession()
   // State to hold the authenticated client
   const [supabaseClient, setSupabaseClient] = useState<SupabaseContextType>(null)
 
@@ -18,6 +19,16 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
 
     async function setupSupabaseClient() {
       try {
+        if (BYPASS_CLERK) {
+          const devClient = createJsClient<Database>(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY!,
+            { auth: { persistSession: false } }
+          )
+          setSupabaseClient(devClient)
+          return
+        }
+
         // If no session, we can still create an unauthenticated client
         if (!session) {
           const anonClient = createJsClient<Database>(

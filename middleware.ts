@@ -1,6 +1,8 @@
 // middleware.ts
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 
+const BYPASS_CLERK = process.env.NEXT_PUBLIC_BYPASS_CLERK === 'true'
+
 // Define routes that should be publicly accessible without authentication
 const isPublicRoute = createRouteMatcher([
   '/', // Example: Your landing page
@@ -23,7 +25,7 @@ const isIgnoredRoute = createRouteMatcher([
 export default clerkMiddleware((auth, req) => {
   // If the route is not ignored and not public, then protect it.
   // Users without an active session will be redirected to the sign-in page.
-  if (!isIgnoredRoute(req) && !isPublicRoute(req)) {
+  if (!BYPASS_CLERK && !isIgnoredRoute(req) && !isPublicRoute(req)) {
     auth.protect();
   }
 
