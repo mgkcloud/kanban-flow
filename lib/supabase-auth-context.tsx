@@ -8,6 +8,14 @@ import type { Database } from "./database.types"
 type SupabaseContextType = SupabaseClient<Database> | null;
 const SupabaseClientContext = createContext<SupabaseContextType>(null)
 
+/**
+ * Provides a Supabase client instance to descendant components, integrating Clerk authentication or a development bypass.
+ *
+ * Renders a loading UI until the Supabase client is initialized based on the current authentication state.
+ *
+ * @remark
+ * If the `BYPASS_CLERK` flag is enabled, the provider creates a Supabase client using the service role key and disables session persistence, bypassing Clerk authentication entirely.
+ */
 export function SupabaseAuthProvider({ children }: { children: React.ReactNode }) {
   const { session, isLoaded: isClerkLoaded } = BYPASS_CLERK ? { session: null, isLoaded: true } : useSession()
   // State to hold the authenticated client

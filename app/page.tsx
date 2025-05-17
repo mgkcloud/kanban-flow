@@ -68,6 +68,14 @@ function isSharingData(data: unknown): data is { members: ProjectMember[]; invit
   return Array.isArray(d.members) && Array.isArray(d.invitations);
 }
 
+/**
+ * Renders the main Kanban project management interface, handling both admin and client views.
+ *
+ * Displays projects, tasks, activity streams, and sharing features based on the user's authentication state and URL parameters. Handles onboarding, project and task creation, filtering, and conditional rendering for client or admin users.
+ *
+ * @remark
+ * When the `BYPASS_CLERK` flag is enabled, authentication hooks are bypassed and fallback values are used, disabling Clerk authentication integration.
+ */
 function HomeContent() {
   // All hooks at the top
   const { user } = BYPASS_CLERK ? { user: null } : useUser()
