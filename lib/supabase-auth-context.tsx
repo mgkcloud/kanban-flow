@@ -10,6 +10,7 @@ const SupabaseClientContext = createContext<SupabaseContextType>(null)
 
 export function SupabaseAuthProvider({ children }: { children: React.ReactNode }) {
   const { session, isLoaded: isClerkLoaded } = BYPASS_CLERK ? { session: null, isLoaded: true } : useSession()
+  const effectiveSession = session
   // State to hold the authenticated client
   const [supabaseClient, setSupabaseClient] = useState<SupabaseContextType>(null)
 
@@ -88,7 +89,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     }
 
     setupSupabaseClient();
-  }, [session, isClerkLoaded]);
+  }, [effectiveSession, isClerkLoaded]);
 
   // Render children only when the client state is not null (i.e., attempted setup)
   return (

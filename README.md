@@ -56,4 +56,4 @@ NEXT_PUBLIC_DEV_USER_EMAIL=will@feistyagency.com
 NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key_here
 ```
 
-This bypasses Clerk authentication and uses the provided Supabase service role key to authenticate requests.
+This bypasses Clerk authentication and uses the provided Supabase service role key for API requests.
