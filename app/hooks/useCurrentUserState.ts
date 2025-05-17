@@ -1,16 +1,33 @@
 import { useState, useEffect } from "react"
 import { useUser, useSession } from "@clerk/nextjs"
+import { BYPASS_CLERK, DEV_USER_EMAIL } from "@/lib/dev-auth"
 import { useSupabaseClient } from "@/lib/supabase-auth-context"
 import { type User, randomId } from "@/lib/data"
 
 export function useCurrentUserState() {
-  const { user } = useUser()
-  const { session } = useSession()
+  const { user } = BYPASS_CLERK ? { user: null } : useUser()
+  const { session } = BYPASS_CLERK ? { session: null } : useSession()
   const supabase = useSupabaseClient()
   const [currentUser, setCurrentUser] = useState<User | null>(null)
 
   useEffect(() => {
     async function syncUser() {
+      if (BYPASS_CLERK) {
+        try {
+          const { data } = await supabase
+            .from("users")
+            .select("*")
+            .eq("email", DEV_USER_EMAIL)
+            .single()
+          if (data) {
+            setCurrentUser(data as User)
+          }
+        } catch (error) {
+          console.error("Error loading dev user:", error)
+        }
+        return
+      }
+
       if (!user || !user.id || !session) return
       try {
         const { data: userData, error: userError } = await supabase
@@ -40,7 +57,7 @@ export function useCurrentUserState() {
       }
     }
     syncUser()
-  }, [user, session, supabase])
+  }, [user, session, supabase, BYPASS_CLERK, DEV_USER_EMAIL])
 
   return { currentUser }
 } 
