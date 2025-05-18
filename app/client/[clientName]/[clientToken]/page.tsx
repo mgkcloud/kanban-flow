@@ -10,6 +10,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/com
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { type Project, type Task, type User, getUsers } from "@/lib/data"
+import { useCurrentUserState } from "@/app/hooks/useCurrentUserState"
 import { STATUS } from "@/lib/data"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
@@ -36,6 +37,7 @@ export default function ClientViewPage() {
   const [tasks, setTasks] = useState<Task[]>([])
   const [users, setUsers] = useState<User[]>([])
   const [error, setError] = useState<string | null>(null)
+  const { currentUser } = useCurrentUserState()
 
   useEffect(() => {
     async function fetchData() {
@@ -166,6 +168,7 @@ export default function ClientViewPage() {
                     tasks={projectTasks}
                     statusList={STATUS as unknown as { key: string; label: string }[]}
                     users={users}
+                    currentUser={currentUser ?? undefined}
                     readonly
                   />
                 </div>

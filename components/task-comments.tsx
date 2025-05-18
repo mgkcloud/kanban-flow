@@ -13,7 +13,7 @@ import { useSupabaseClient } from "@/lib/supabase-auth-context"
 
 interface TaskCommentsProps {
   taskId: string
-  currentUser: User
+  currentUser?: User | null
 }
 
 export function TaskComments({ taskId, currentUser }: TaskCommentsProps) {
@@ -45,17 +45,20 @@ export function TaskComments({ taskId, currentUser }: TaskCommentsProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newComment.trim()) return
+    if (!newComment.trim() || !currentUser) return
 
     setSubmitting(true)
     setError(null)
 
     try {
-      const comment = await createComment({
-        task_id: taskId,
-        user_id: currentUser.id,
-        content: newComment,
-      }, supabase)
+      const comment = await createComment(
+        {
+          task_id: taskId,
+          user_id: currentUser.id,
+          content: newComment,
+        },
+        supabase,
+      )
 
       if (comment) {
         // Add user data to the comment for display
@@ -81,17 +84,26 @@ export function TaskComments({ taskId, currentUser }: TaskCommentsProps) {
     <div className="space-y-3">
       <h3 className="text-sm font-medium">Comments</h3>
 
-      <form onSubmit={handleSubmit} className="flex gap-2">
-        <Textarea
-          placeholder="Add a comment..."
-          value={newComment}
-          onChange={(e) => setNewComment(e.target.value)}
-          className="min-h-[60px] text-sm resize-none bg-background/50"
-        />
-        <Button type="submit" size="sm" className="self-end rounded-lg" disabled={submitting || !newComment.trim()}>
-          <Send size={14} />
-        </Button>
-      </form>
+      {currentUser ? (
+        <form onSubmit={handleSubmit} className="flex gap-2">
+          <Textarea
+            placeholder="Add a comment..."
+            value={newComment}
+            onChange={(e) => setNewComment(e.target.value)}
+            className="min-h-[60px] text-sm resize-none bg-background/50"
+          />
+          <Button
+            type="submit"
+            size="sm"
+            className="self-end rounded-lg"
+            disabled={submitting || !newComment.trim()}
+          >
+            <Send size={14} />
+          </Button>
+        </form>
+      ) : (
+        <p className="text-sm text-muted-foreground">Log in to add comments</p>
+      )}
 
       {error && (
         <Alert variant="destructive" className="py-2">
