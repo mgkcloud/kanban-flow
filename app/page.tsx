@@ -7,6 +7,7 @@ import { ThemeToggle } from "@/components/theme-toggle"
 import { KanbanBoard } from "@/components/kanban-board"
 import { ImportTasks } from "@/components/import-tasks"
 import { ActivityStream } from "@/components/activity-stream"
+import { WebhookSettings } from "@/components/webhook-settings"
 import { ProjectSharing } from "@/components/project-sharing"
 import { FolderKanban, Search, SlidersHorizontal, History, Plus } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -596,6 +597,7 @@ function HomeContent() {
                             <h3 className="font-medium text-sm">Recent Activity</h3>
                           </div>
                           <ActivityStream projectId={projects.find((p) => p.id === currentProjectId)?.id || ""} users={users} maxItems={10} />
+                          <WebhookSettings projectId={projects.find((p) => p.id === currentProjectId)?.id || ""} />
                         </div>
                       </div>
                     )}
