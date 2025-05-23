@@ -10,7 +10,7 @@ import { type Task, type User, formatDate } from "@/lib/data"
 interface TaskDetailProps {
   task: Task
   users: User[]
-  currentUser: User
+  currentUser?: User | null
   open: boolean
   onOpenChange: (open: boolean) => void
   onEdit?: () => void

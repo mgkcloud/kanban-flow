@@ -150,7 +150,7 @@ export function KanbanBoard({
         )
       })}
 
-      {selectedTask && currentUser && (
+      {selectedTask && (
         <TaskDetail
           task={selectedTask}
           users={users}
