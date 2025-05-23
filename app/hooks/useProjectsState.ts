@@ -12,25 +12,43 @@ export function useProjectsState(currentUser: User | null) {
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [showOnboarding, setShowOnboarding] = useState(false)
-  const [currentProjectId, setCurrentProjectId] = useState<string>("")
+  const [currentProjectId, setCurrentProjectId] = useState<string | null>(null)
   const [showNewProjectDialog, setShowNewProjectDialog] = useState(false)
   const [newProjectName, setNewProjectName] = useState("")
   const [newProjectClientName, setNewProjectClientName] = useState("")
   const [isCreatingProject, setIsCreatingProject] = useState(false)
   const [staticClientUrl, setStaticClientUrl] = useState("")
 
+  const userId = BYPASS_CLERK ? currentUser?.id : user?.id
+  const sessionExists = BYPASS_CLERK ? !!currentUser : !!session
+
   // Fetch projects and onboarding state
   useEffect(() => {
+    console.log('[useProjectsState] useEffect triggered with:', {
+      userId,
+      sessionExists,
+      supabaseInitialized: !!supabase
+    })
+
     async function fetchProjects() {
+      console.log('[useProjectsState] fetchProjects started')
+      
       if (BYPASS_CLERK) {
-        if (!currentUser) return
+        if (!currentUser) {
+          console.log('[useProjectsState] BYPASS_CLERK: No currentUser, returning')
+          return
+        }
         setLoading(true)
         try {
           const userId = currentUser.id
+          console.log('[useProjectsState] BYPASS_CLERK: Fetching for userId:', userId)
+          
           const { data: projectMemberships } = await supabase
             .from("project_members")
             .select(`project:project_id (id, name, client_name, client_token, created_at)`)
             .eq("user_id", userId)
+
+          console.log('[useProjectsState] BYPASS_CLERK: Raw projectMemberships:', projectMemberships)
 
           let userProjects = (projectMemberships || [])
             .map((membership: { project: Project | Project[] }) => {
@@ -42,7 +60,10 @@ export function useProjectsState(currentUser: User | null) {
             })
             .filter(Boolean)
 
+          console.log('[useProjectsState] BYPASS_CLERK: Processed userProjects:', userProjects)
+
           if (userProjects.length === 0 && userId) {
+            console.log('[useProjectsState] BYPASS_CLERK: No projects found, creating default')
             try {
               const defaultProjectId = randomId()
               const clientToken = randomId()
@@ -67,12 +88,14 @@ export function useProjectsState(currentUser: User | null) {
               })
               if (memberError) throw memberError
               userProjects = [projectData]
+              console.log('[useProjectsState] BYPASS_CLERK: Created default project:', projectData)
               setProjects(userProjects)
               setCurrentProjectId(projectData.id)
             } catch (err) {
               console.error("Error auto-creating default project:", err)
             }
           } else {
+            console.log('[useProjectsState] BYPASS_CLERK: Setting projects:', userProjects)
             setProjects(userProjects)
           }
         } catch (error) {
@@ -159,18 +182,22 @@ export function useProjectsState(currentUser: User | null) {
       }
     }
     fetchProjects()
-  }, [user, session, supabase, currentUser])
+  }, [userId, sessionExists, supabase])
 
   // Set initial project once data is loaded
   useEffect(() => {
     if (projects.length > 0 && !currentProjectId) {
-      setCurrentProjectId(projects[0]?.id || "")
+      const firstProjectId = projects[0]?.id
+      if (firstProjectId) {
+        console.log('[useProjectsState] Setting initial project:', firstProjectId)
+        setCurrentProjectId(firstProjectId)
+      }
     }
   }, [projects, currentProjectId])
 
   // Static client org URL (used for sharing)
   useEffect(() => {
-    const currentProject = projects.find((p) => p.id === currentProjectId) || projects[0]
+    const currentProject = currentProjectId ? projects.find((p) => p.id === currentProjectId) : projects[0]
     if (typeof window !== "undefined" && currentProject?.client_name && currentProject?.client_token) {
       setStaticClientUrl(
         `${window.location.origin}/client/${encodeURIComponent(currentProject.client_name)}/${currentProject.client_token}`

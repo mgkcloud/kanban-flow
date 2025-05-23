@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
-import { useSupabaseClient } from "@/lib/supabase-auth-context"
+import { SupabaseAuthProvider, useSupabaseClient } from "@/lib/supabase-auth-context"
 import { KanbanBoard } from "@/components/kanban-board"
 import { ActivityStream } from "@/components/activity-stream"
 import { FolderKanban } from "lucide-react"
@@ -23,7 +23,7 @@ function isErrorWithMessage(err: unknown): err is { message: string } {
   )
 }
 
-export default function ClientViewPage() {
+function ClientViewContent() {
   const params = useParams()
   const supabase = useSupabaseClient()
   const { toast } = useToast()
@@ -166,6 +166,7 @@ export default function ClientViewPage() {
                     tasks={projectTasks}
                     statusList={STATUS as unknown as { key: string; label: string }[]}
                     users={users}
+                    currentUser={undefined}
                     readonly
                   />
                 </div>
@@ -181,5 +182,13 @@ export default function ClientViewPage() {
         })}
       </div>
     </div>
+  )
+}
+
+export default function ClientViewPage() {
+  return (
+    <SupabaseAuthProvider>
+      <ClientViewContent />
+    </SupabaseAuthProvider>
   )
 }

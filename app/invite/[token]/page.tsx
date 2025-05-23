@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { useUser } from "@clerk/nextjs"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { FolderKanban, AlertCircle, Check } from "lucide-react"
 import { randomId } from "@/lib/data"
 import { useSupabaseClient } from "@/lib/supabase-auth-context"
+import { BYPASS_CLERK, DEV_USER_EMAIL } from "@/lib/dev-auth"
 
 type ProjectPreview = { id: string; name: string }
 
@@ -24,7 +24,6 @@ type InvitationPreview = {
 export default function InvitePage() {
   const params = useParams()
   const token = params.token as string
-  const { user } = useUser()
   const supabase = useSupabaseClient();
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -34,6 +33,25 @@ export default function InvitePage() {
   const [isSuccess, setIsSuccess] = useState(false)
   const router = useRouter()
   const [internalUserId, setInternalUserId] = useState<string | null>(null);
+  const [isClient, setIsClient] = useState(false);
+
+  // Handle client-side mounting
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  // Handle authentication based on bypass mode - only get user after client mount
+  let user = null;
+  if (isClient) {
+    if (BYPASS_CLERK) {
+      user = { id: 'dev-user', primaryEmailAddress: { emailAddress: DEV_USER_EMAIL } };
+    } else {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { useUser } = require("@clerk/nextjs");
+      // eslint-disable-next-line react-hooks/rules-of-hooks
+      user = useUser().user;
+    }
+  }
 
   useEffect(() => {
     const fetchInvitation = async () => {
@@ -92,21 +110,40 @@ export default function InvitePage() {
     fetchInvitation()
   }, [token, supabase])
 
-  // Fetch internal user ID when Clerk user is loaded
+  // Fetch internal user ID when user is loaded
   useEffect(() => {
     async function fetchInternalUserId() {
-      if (!user || !user.id || !supabase) return;
+      if (!user || !supabase) return;
+      
       try {
-        const { data: userData, error } = await supabase
-          .from("users")
-          .select("id")
-          .eq("auth_id", user.id)
-          .single();
-        if (error) {
-          console.error("Error fetching internal user ID:", error);
-          setError("Could not verify your user account. Please try logging in again.");
-        } else if (userData) {
-          setInternalUserId(userData.id);
+        if (BYPASS_CLERK) {
+          // In bypass mode, look up user by email
+          const { data: userData, error } = await supabase
+            .from("users")
+            .select("id")
+            .eq("email", DEV_USER_EMAIL)
+            .single();
+            
+          if (error) {
+            console.error("Error fetching dev user ID:", error);
+            setError("Could not find dev user account. Please ensure it exists in the database.");
+          } else if (userData) {
+            setInternalUserId(userData.id);
+          }
+        } else {
+          // In normal mode, use Clerk auth_id
+          const { data: userData, error } = await supabase
+            .from("users")
+            .select("id")
+            .eq("auth_id", user.id)
+            .single();
+            
+          if (error) {
+            console.error("Error fetching internal user ID:", error);
+            setError("Could not verify your user account. Please try logging in again.");
+          } else if (userData) {
+            setInternalUserId(userData.id);
+          }
         }
       } catch (err) {
         console.error("Exception fetching internal user ID:", err);
@@ -114,7 +151,7 @@ export default function InvitePage() {
       }
     }
     fetchInternalUserId();
-  }, [user, supabase]);
+  }, [user, supabase])
 
   const handleAcceptInvitation = async () => {
     // Use internalUserId in checks
@@ -176,8 +213,13 @@ export default function InvitePage() {
     }
   }
 
-  // If not authenticated, show login prompt
-  if (!user) {
+  // Don't render anything until client is mounted
+  if (!isClient) {
+    return null;
+  }
+
+  // If not authenticated, show login prompt (only in non-bypass mode)
+  if (!BYPASS_CLERK && !user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-subtle p-4">
         <div className="w-full max-w-md">

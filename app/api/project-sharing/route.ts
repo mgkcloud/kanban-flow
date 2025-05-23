@@ -3,8 +3,11 @@ import { supabaseAdminClient } from "@/lib/supabase"
 
 export async function GET(req: NextRequest) {
   const projectId = req.nextUrl.searchParams.get("projectId")
+  
+  console.log('[API /project-sharing] Received request for projectId:', projectId)
 
   if (!projectId) {
+    console.error('[API /project-sharing] Missing projectId in request')
     return NextResponse.json({ error: "projectId is required" }, { status: 400 })
   }
 
@@ -25,6 +28,7 @@ export async function GET(req: NextRequest) {
     .eq("project_id", projectId)
 
   if (membersError) {
+    console.error('[API /project-sharing] Error fetching members:', membersError)
     return NextResponse.json({ error: membersError.message }, { status: 500 })
   }
 
@@ -47,8 +51,10 @@ export async function GET(req: NextRequest) {
     .eq("project_id", projectId)
 
   if (invitationsError) {
+    console.error('[API /project-sharing] Error fetching invitations:', invitationsError)
     return NextResponse.json({ error: invitationsError.message }, { status: 500 })
   }
 
+  console.log('[API /project-sharing] Returning data - members:', normalizedMembers.length, 'invitations:', invitationsData?.length || 0)
   return NextResponse.json({ members: normalizedMembers, invitations: invitationsData })
 } 

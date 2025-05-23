@@ -10,7 +10,7 @@ import { type Task, type User, formatDate } from "@/lib/data"
 interface TaskDetailProps {
   task: Task
   users: User[]
-  currentUser: User
+  currentUser?: User
   open: boolean
   onOpenChange: (open: boolean) => void
   onEdit?: () => void
@@ -151,7 +151,14 @@ export function TaskDetail({ task, users, currentUser, open, onOpenChange, onEdi
           </div>
 
           <div>
-            <TaskComments taskId={task.id} currentUser={currentUser} />
+            {currentUser ? (
+              <TaskComments taskId={task.id} currentUser={currentUser} />
+            ) : (
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium">Comments</h3>
+                <p className="text-sm text-muted-foreground">Comments are not available in read-only mode.</p>
+              </div>
+            )}
           </div>
         </div>
       </DialogContent>

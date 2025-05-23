@@ -1,13 +1,37 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
 import { Loader2 } from "lucide-react";
+import { BYPASS_CLERK } from "@/lib/dev-auth";
 
 export default function AuthenticatingPage() {
-  const { user, isLoaded } = useUser();
   const router = useRouter();
+  const [isClient, setIsClient] = useState(false);
+
+  // Handle client-side mounting
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  // Handle bypass mode - only after client mount to prevent hydration mismatch
+  useEffect(() => {
+    if (isClient && BYPASS_CLERK) {
+      router.replace("/");
+    }
+  }, [router, isClient]);
+
+  // Don't render anything until client is mounted or if bypassing
+  if (!isClient || BYPASS_CLERK) {
+    return null;
+  }
+
+  // From here on, we know we're on the client and not bypassing, so we can safely import Clerk
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { useUser } = require("@clerk/nextjs");
+  
+  // Now we can use the hooks safely
+  const { user, isLoaded } = useUser();
 
   useEffect(() => {
     // Wait until auth state is determined
@@ -19,7 +43,6 @@ export default function AuthenticatingPage() {
         router.replace(redirectPath);
       } else {
         // Auth failed or session expired, go to login
-        // This shouldn't happen often directly from callback, but handles edge cases
         router.replace("/login");
       }
     }

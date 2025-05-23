@@ -1,7 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
-import { useSignUp, useUser } from "@clerk/nextjs"
+import React, { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,36 +8,57 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { FolderKanban, Mail, AlertCircle, RefreshCw } from "lucide-react"
 import Link from "next/link"
-import { isClerkAPIResponseError } from "@clerk/nextjs/errors"
+import { BYPASS_CLERK } from "@/lib/dev-auth"
 
 export default function SignupPage() {
-  const { isLoaded, signUp, setActive } = useSignUp()
-  const { user } = useUser()
   const router = useRouter()
   const [email, setEmail] = useState("")
+  const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [code, setCode] = useState("")
   const [isVerifying, setIsVerifying] = useState(false)
   const [resendLoading, setResendLoading] = useState(false)
   const [resendCooldown, setResendCooldown] = useState(0)
   const [signUpAttemptId, setSignUpAttemptId] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [isClient, setIsClient] = useState(false)
 
-  // Redirect if already signed in
-  React.useEffect(() => {
-    if (user) {
+  // Handle client-side mounting
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
+
+  // Handle bypass mode - only after client mount to prevent hydration mismatch
+  useEffect(() => {
+    if (isClient && BYPASS_CLERK) {
       router.replace("/")
     }
-  }, [user, router])
+  }, [router, isClient])
 
+  // Don't render anything until client is mounted or if bypassing
+  if (!isClient || BYPASS_CLERK) {
+    return null
+  }
+
+  // From here on, we know we're on the client and not bypassing, so we can safely import Clerk
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { useSignUp, useUser } = require("@clerk/nextjs")
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { isClerkAPIResponseError } = require("@clerk/nextjs/errors")
+  
+  // Now we can use the hooks safely
+  const { isLoaded, signUp, setActive } = useSignUp()
+  const { user } = useUser()
+
+  // Redirect if already signed in
   if (user) {
-    // Optionally show a loading spinner
+    router.replace("/")
     return null
   }
 
   // Handle email submit
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError(null)
     if (!email.trim()) {
       setError("Please enter your email address")
       return
@@ -67,24 +87,12 @@ export default function SignupPage() {
         })
       }, 1000)
     } catch (err: unknown) {
-      // Log and display Clerk error message
-      if (isClerkAPIResponseError(err)) {
-        const firstError = (err as { errors: { longMessage?: string; message?: string }[] }).errors[0]
-        setError(firstError.longMessage || firstError.message || "Sign up failed")
-        console.error("Clerk signUp.create error:", (err as { errors: unknown[] }).errors)
-      } else if (
-        typeof err === "object" &&
-        err !== null &&
-        "errors" in err &&
-        Array.isArray((err as { errors?: unknown[] }).errors) &&
-        (err as { errors: unknown[] }).errors.length > 0
-      ) {
-        const firstError = (err as { errors: { longMessage?: string; message?: string }[] }).errors[0]
-        setError(firstError.longMessage || firstError.message || "Sign up failed")
-        console.error("Clerk signUp.create error:", (err as { errors: unknown[] }).errors)
+      console.error("Signup error:", err)
+      if (isClerkAPIResponseError && isClerkAPIResponseError(err)) {
+        const clerkErr = err as { errors: { longMessage?: string; message?: string }[] }
+        setError(clerkErr.errors[0]?.longMessage || clerkErr.errors[0]?.message || "Sign up failed")
       } else {
-        setError("Sign up failed")
-        console.error("Unknown signUp.create error:", err)
+        setError("Sign up failed. Please try again.")
       }
     } finally {
       setIsLoading(false)
@@ -94,51 +102,28 @@ export default function SignupPage() {
   // Handle code submit
   const handleCodeSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError(null)
     if (!code.trim()) {
       setError("Please enter the code from your email")
       return
     }
-    if (!isLoaded || !signUp) return
+    if (!isLoaded || !signUp || !setActive) return
     setIsLoading(true)
     try {
       const result = await signUp.attemptEmailAddressVerification({ code })
       if (result.status === "complete") {
         await setActive({ session: result.createdSessionId })
-        try {
-          await fetch("/api/create-user", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              name: email.split("@")[0],
-              email,
-            }),
-          })
-        } catch (err) {
-          console.error("Failed to create user in Supabase:", err)
-        }
         router.push("/")
-      } else if (typeof result.status === "string" && result.status.toLowerCase().includes("need")) {
-        setError("Please complete all required steps. Try signing up again.")
-      } else if (typeof result.status === "string" && result.status.toLowerCase().includes("expire")) {
-        setError("Code expired. Please request a new code.")
       } else {
         setError("Invalid code. Please check your email and try again.")
       }
     } catch (err: unknown) {
-      if (isClerkAPIResponseError(err)) {
-        const firstError = (err as { errors: { longMessage?: string; message?: string }[] }).errors[0]
-        setError(firstError.longMessage || firstError.message || "Verification failed")
-      } else if (
-        typeof err === "object" &&
-        err !== null &&
-        "errors" in err &&
-        Array.isArray((err as { errors?: unknown[] }).errors) &&
-        (err as { errors: unknown[] }).errors.length > 0
-      ) {
-        const firstError = (err as { errors: { longMessage?: string; message?: string }[] }).errors[0]
-        setError(firstError.longMessage || firstError.message || "Verification failed")
+      console.error("Verification error:", err)
+      if (isClerkAPIResponseError && isClerkAPIResponseError(err)) {
+        const clerkErr = err as { errors: { longMessage?: string; message?: string }[] }
+        setError(clerkErr.errors[0]?.longMessage || clerkErr.errors[0]?.message || "Verification failed")
       } else {
-        setError("Verification failed")
+        setError("Verification failed. Please try again.")
       }
     } finally {
       setIsLoading(false)
@@ -147,10 +132,10 @@ export default function SignupPage() {
 
   // Handle resend code
   const handleResend = async () => {
-    if (!signUpAttemptId || !signUp) return
     setError(null)
     setResendLoading(true)
     try {
+      if (!signUpAttemptId || !signUp) return
       await signUp.prepareEmailAddressVerification({ strategy: "email_code" })
       setResendCooldown(30)
       // Start cooldown timer
@@ -163,7 +148,8 @@ export default function SignupPage() {
           return prev - 1
         })
       }, 1000)
-    } catch {
+    } catch (err: unknown) {
+      console.error("Resend error:", err)
       setError("Failed to resend code. Please try again.")
     } finally {
       setResendLoading(false)

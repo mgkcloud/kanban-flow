@@ -1,14 +1,15 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Users, Copy, AlertCircle, UserPlus, Mail, Check, X } from "lucide-react"
-import { useUser } from "@clerk/nextjs"
 import { type User as InternalUser } from "@/lib/data"
 import { useProjectSharingLogic } from "./project-sharing-logic"
+import { BYPASS_CLERK, DEV_USER_EMAIL } from "@/lib/dev-auth"
 
 interface ProjectMember {
   id: string
@@ -38,7 +39,26 @@ interface ProjectSharingProps {
 }
 
 export function ProjectSharing(props: ProjectSharingProps) {
-  const { user } = useUser()
+  const [isClient, setIsClient] = useState(false)
+
+  // Handle client-side mounting
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
+
+  // Handle authentication based on bypass mode - only get user after client mount
+  let user = null
+  if (isClient) {
+    if (BYPASS_CLERK) {
+      user = { id: 'dev-user' }
+    } else {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { useUser } = require("@clerk/nextjs")
+      // eslint-disable-next-line react-hooks/rules-of-hooks
+      user = useUser().user
+    }
+  }
+
   const logic = useProjectSharingLogic({ ...props, user })
   const {
     inviteEmail,
@@ -57,6 +77,23 @@ export function ProjectSharing(props: ProjectSharingProps) {
     getRoleIcon,
     isCurrentUserOwner,
   } = logic
+
+  // Don't render anything until client is mounted
+  if (!isClient) {
+    return (
+      <Dialog>
+        <DialogTrigger asChild>
+          <Button variant="outline" className="flex items-center gap-2">
+            <Users size={16} />
+            <span>Share</span>
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="sm:max-w-md frosted-panel">
+          <div className="p-4">Loading...</div>
+        </DialogContent>
+      </Dialog>
+    )
+  }
 
   return (
     <Dialog>

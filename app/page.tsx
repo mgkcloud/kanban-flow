@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { CompactSidebar } from "@/components/compact-sidebar"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { KanbanBoard } from "@/components/kanban-board"
@@ -13,7 +13,6 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { useUser, useClerk, useSession } from "@clerk/nextjs"
 import { BYPASS_CLERK, DEV_USER_EMAIL } from "@/lib/dev-auth"
 import { SupabaseAuthProvider, useSupabaseClient } from "@/lib/supabase-auth-context"
 import {
@@ -69,10 +68,46 @@ function isSharingData(data: unknown): data is { members: ProjectMember[]; invit
 }
 
 function HomeContent() {
-  // All hooks at the top
-  const { user } = BYPASS_CLERK ? { user: null } : useUser()
-  const { signOut } = BYPASS_CLERK ? { signOut: () => {} } : useClerk()
-  const { session, isLoaded } = BYPASS_CLERK ? { session: null, isLoaded: true } : useSession()
+  const [isClient, setIsClient] = useState(false)
+
+  // Handle client-side mounting
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
+
+  // Handle authentication based on bypass mode - only get hooks after client mount
+  let user = null
+  let signOut = () => {}
+  let session = null
+  let isLoaded = true
+
+  if (isClient) {
+    if (BYPASS_CLERK) {
+      user = { 
+        id: 'dev-user',
+        firstName: 'Will',
+        primaryEmailAddress: { emailAddress: DEV_USER_EMAIL }
+      }
+      signOut = () => {}
+      session = { id: 'dev-session' }
+      isLoaded = true
+    } else {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { useUser, useClerk, useSession } = require("@clerk/nextjs")
+      // eslint-disable-next-line react-hooks/rules-of-hooks
+      const userData = useUser()
+      // eslint-disable-next-line react-hooks/rules-of-hooks
+      const clerkData = useClerk()
+      // eslint-disable-next-line react-hooks/rules-of-hooks
+      const sessionData = useSession()
+      
+      user = userData.user
+      signOut = clerkData.signOut
+      session = sessionData.session
+      isLoaded = sessionData.isLoaded
+    }
+  }
+
   const supabase = useSupabaseClient()
   const [users, setUsers] = useState<User[]>([])
   const [searchQuery, setSearchQuery] = useState("")
@@ -84,6 +119,8 @@ function HomeContent() {
   const [sharingData, setSharingData] = useState<{ members: ProjectMember[]; invitations: ProjectInvitation[] } | null>(null)
   const [loadingSharing, setLoadingSharing] = useState(false)
   const [sharingError, setSharingError] = useState<string | null>(null)
+  const [lastFetchedProjectId, setLastFetchedProjectId] = useState<string | null>(null)
+  const fetchingRef = useRef(false)
 
   // Custom hooks for state management
   const { currentUser } = useCurrentUserState()
@@ -121,77 +158,125 @@ function HomeContent() {
     handleDelete,
     handleImportTasks,
     openEdit,
-  } = useTasksState(currentUser, projects.find((p) => p.id === currentProjectId) || projects[0], users, session)
+  } = useTasksState(currentUser, currentProjectId ? projects.find((p) => p.id === currentProjectId) : projects[0], users, session)
 
   const fetchSharingData = useCallback(async (projectId: string) => {
+    // Guard against invalid project IDs
+    if (!projectId || projectId.length === 0) {
+      console.warn('[Project Sharing] Attempted to fetch with invalid project ID:', projectId)
+      return
+    }
+    
+    // Prevent concurrent fetches
+    if (fetchingRef.current) {
+      console.log('[Project Sharing] Already fetching, skipping duplicate request')
+      return
+    }
+    
+    fetchingRef.current = true
     setLoadingSharing(true)
     setSharingError(null)
+    setLastFetchedProjectId(projectId)
     try {
+      console.log('[Project Sharing] API call to /api/project-sharing with projectId:', projectId)
       const res = await fetch(`/api/project-sharing?projectId=${projectId}`)
-      if (!res.ok) throw new Error("Failed to fetch sharing data")
+      if (!res.ok) {
+        console.error('[Project Sharing] API call failed:', res.status, res.statusText)
+        throw new Error("Failed to fetch sharing data")
+      }
       const data: unknown = await res.json()
       if (isSharingData(data)) {
+        console.log('[Project Sharing] Successfully fetched sharing data:', data)
         setSharingData({
           members: data.members,
           invitations: data.invitations,
         })
       } else {
+        console.error('[Project Sharing] Invalid data format received:', data)
         throw new Error("Invalid sharing data format")
       }
     } catch (err: unknown) {
       const error = err instanceof Error ? err.message : "Unknown error"
+      console.error('[Project Sharing] Error fetching sharing data:', error)
       setSharingError(error)
       setSharingData(null)
     } finally {
       setLoadingSharing(false)
+      fetchingRef.current = false
     }
   }, [])
 
   useEffect(() => {
-    if (currentProjectId) {
-      fetchSharingData(currentProjectId)
-    } else {
+    // Only fetch if we have a valid project ID and it's different from the last fetched one
+    if (currentProjectId && currentProjectId !== lastFetchedProjectId) {
+      // Verify the project exists before fetching
+      const projectExists = projects.some(p => p.id === currentProjectId)
+      if (projectExists) {
+        console.log('[Project Sharing] Project changed and exists, fetching sharing data for:', currentProjectId)
+        fetchSharingData(currentProjectId)
+      } else {
+        console.warn('[Project Sharing] Project ID does not exist in projects array:', currentProjectId)
+        setSharingData(null)
+      }
+    } else if (!currentProjectId) {
+      console.log('[Project Sharing] No valid project ID, clearing sharing data')
       setSharingData(null)
+      setLastFetchedProjectId(null)
     }
-  }, [currentProjectId, fetchSharingData])
+  }, [currentProjectId, lastFetchedProjectId, fetchSharingData, projects])
 
   useEffect(() => {
     async function fetchData() {
       if (!user || !user.id || !session) return
       try {
-        // First, check if this Clerk user exists in our users table
-        const { data: userData, error: userError } = await supabase
-          .from("users")
-          .select("*")
-          .eq("auth_id", user.id)
-          .single()
-          
-        // Get or create our internal user ID
-        let internalUserId: string;
+        let internalUserId: string
         
-        if (userError) {
-          if (userError.code === "PGRST116") {
-            // User doesn't exist yet, let's create one with our own internal ID
-            internalUserId = randomId();
-            const newUser = {
-              id: internalUserId, // Our internal ID (UUID format)
-              name: user.firstName || user.primaryEmailAddress?.emailAddress.split("@")[0] || "User",
-              email: user.primaryEmailAddress?.emailAddress || "",
-              role: "user",
-              auth_id: user.id, // Store the Clerk ID for reference
-            }
-            const { error: insertError } = await supabase.from("users").insert(newUser)
-            if (insertError) {
-              console.error("Error creating user:", insertError)
-              return; // Exit early on error
+        if (BYPASS_CLERK) {
+          // In bypass mode, look up the dev user by email
+          const { data: userData, error: userError } = await supabase
+            .from("users")
+            .select("*")
+            .eq("email", DEV_USER_EMAIL)
+            .single()
+            
+          if (userError || !userData) {
+            console.error("Error fetching dev user:", userError)
+            return
+          }
+          
+          internalUserId = userData.id
+        } else {
+          // Normal Clerk mode - check if this Clerk user exists in our users table
+          const { data: userData, error: userError } = await supabase
+            .from("users")
+            .select("*")
+            .eq("auth_id", user.id)
+            .single()
+            
+          if (userError) {
+            if (userError.code === "PGRST116") {
+              // User doesn't exist yet, let's create one with our own internal ID
+              internalUserId = randomId();
+              const newUser = {
+                id: internalUserId, // Our internal ID (UUID format)
+                name: user.firstName || user.primaryEmailAddress?.emailAddress.split("@")[0] || "User",
+                email: user.primaryEmailAddress?.emailAddress || "",
+                role: "user",
+                auth_id: user.id, // Store the Clerk ID for reference
+              }
+              const { error: insertError } = await supabase.from("users").insert(newUser)
+              if (insertError) {
+                console.error("Error creating user:", insertError)
+                return; // Exit early on error
+              }
+            } else {
+              console.error("Error fetching user data:", userError);
+              return; // Exit early on unexpected error
             }
           } else {
-            console.error("Error fetching user data:", userError);
-            return; // Exit early on unexpected error
+            // User exists, use their internal ID
+            internalUserId = userData.id;
           }
-        } else {
-          // User exists, use their internal ID
-          internalUserId = userData.id;
         }
         
         // Now use our internal ID for all operations
@@ -271,7 +356,7 @@ function HomeContent() {
       }
     }
     fetchData()
-  }, [user, session, supabase, setProjects, setCurrentProjectId, setTasks])
+  }, [user, session, supabase])
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -297,15 +382,19 @@ function HomeContent() {
   }, [projects])
 
   // Only after all hooks, do the early return
-  if (!isLoaded) {
+  if (!isClient || (!BYPASS_CLERK && !isLoaded)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-subtle">
         <div className="text-center frosted-panel p-8 rounded-xl animate-fade-in">
           <div className="w-16 h-16 rounded-xl bg-gradient-primary flex items-center justify-center shadow-lg mx-auto mb-4">
             <FolderKanban size={32} className="text-white" />
           </div>
-          <h2 className="text-2xl font-bold mb-2 text-gradient-primary">Loading...</h2>
-          <p>Authenticating your session...</p>
+          <h2 className="text-2xl font-bold mb-2 text-gradient-primary">
+            {!isClient ? "Connecting..." : "Loading..."}
+          </h2>
+          <p>
+            {!isClient ? "Setting up your workspace..." : "Authenticating your session..."}
+          </p>
         </div>
       </div>
     )

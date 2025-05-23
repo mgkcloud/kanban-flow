@@ -1,7 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
-import { useSignIn, useUser } from "@clerk/nextjs"
+import React, { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,10 +8,9 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { FolderKanban, Mail, AlertCircle, RefreshCw } from "lucide-react"
 import Link from "next/link"
+import { BYPASS_CLERK } from "@/lib/dev-auth"
 
 export default function LoginPage() {
-  const { isLoaded, signIn, setActive } = useSignIn()
-  const { user } = useUser()
   const router = useRouter()
   const [email, setEmail] = useState("")
   const [error, setError] = useState<string | null>(null)
@@ -22,16 +20,36 @@ export default function LoginPage() {
   const [resendLoading, setResendLoading] = useState(false)
   const [resendCooldown, setResendCooldown] = useState(0)
   const [signInAttemptId, setSignInAttemptId] = useState<string | null>(null)
+  const [isClient, setIsClient] = useState(false)
 
-  // Redirect if already signed in
-  React.useEffect(() => {
-    if (user) {
+  // Handle client-side mounting
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
+
+  // Handle bypass mode - only after client mount to prevent hydration mismatch
+  useEffect(() => {
+    if (isClient && BYPASS_CLERK) {
       router.replace("/")
     }
-  }, [user, router])
+  }, [router, isClient])
 
+  // Don't render anything until client is mounted or if bypassing
+  if (!isClient || BYPASS_CLERK) {
+    return null
+  }
+
+  // From here on, we know we're on the client and not bypassing, so we can safely import Clerk
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { useSignIn, useUser } = require("@clerk/nextjs")
+  
+  // Now we can use the hooks safely
+  const { isLoaded, signIn, setActive } = useSignIn()
+  const { user } = useUser()
+
+  // Redirect if already signed in
   if (user) {
-    // Optionally show a loading spinner
+    router.replace("/")
     return null
   }
 
@@ -48,7 +66,7 @@ export default function LoginPage() {
       setError("Please enter a valid email address")
       return
     }
-    if (!isLoaded) return
+    if (!isLoaded || !signIn) return
     setIsLoading(true)
     try {
       const attempt = await signIn.create({
@@ -97,7 +115,7 @@ export default function LoginPage() {
       setError("Please enter the code from your email")
       return
     }
-    if (!isLoaded) return
+    if (!isLoaded || !signIn || !setActive) return
     setIsLoading(true)
     try {
       const result = await signIn.attemptFirstFactor({
@@ -137,7 +155,7 @@ export default function LoginPage() {
     setError(null)
     setResendLoading(true)
     try {
-      if (!signInAttemptId) return
+      if (!signInAttemptId || !signIn) return
       // Re-initiate the sign-in to resend the code
       await signIn.create({
         identifier: email,
