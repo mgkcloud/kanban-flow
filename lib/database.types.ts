@@ -175,6 +175,26 @@ export interface Database {
           visibility?: "internal" | "public"
         }
       }
+      status_webhooks: {
+        Row: {
+          id: string
+          project_id: string
+          status: "todo" | "in-progress" | "done"
+          url: string
+        }
+        Insert: {
+          id: string
+          project_id: string
+          status: "todo" | "in-progress" | "done"
+          url: string
+        }
+        Update: {
+          id?: string
+          project_id?: string
+          status?: "todo" | "in-progress" | "done"
+          url?: string
+        }
+      }
     }
   }
 }
