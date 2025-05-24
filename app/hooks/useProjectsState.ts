@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react"
 import { useUser, useSession } from "@clerk/nextjs"
+import { BYPASS_CLERK } from "@/lib/dev-auth"
 import { useSupabaseClient } from "@/lib/supabase-auth-context"
 import { type Project, type User, randomId } from "@/lib/data"
 
 export function useProjectsState(currentUser: User | null) {
-  const { user } = useUser()
-  const { session } = useSession()
+  const { user } = BYPASS_CLERK ? { user: null } : useUser()
+  const { session } = BYPASS_CLERK ? { session: null } : useSession()
   const supabase = useSupabaseClient()
 
   const [projects, setProjects] = useState<Project[]>([])
@@ -21,6 +22,66 @@ export function useProjectsState(currentUser: User | null) {
   // Fetch projects and onboarding state
   useEffect(() => {
     async function fetchProjects() {
+      if (BYPASS_CLERK) {
+        if (!currentUser) return
+        setLoading(true)
+        try {
+          const userId = currentUser.id
+          const { data: projectMemberships } = await supabase
+            .from("project_members")
+            .select(`project:project_id (id, name, client_name, client_token, created_at)`)
+            .eq("user_id", userId)
+
+          let userProjects = (projectMemberships || [])
+            .map((membership: { project: Project | Project[] }) => {
+              const proj = membership.project
+              if (Array.isArray(proj)) {
+                return proj[0] || null
+              }
+              return proj || null
+            })
+            .filter(Boolean)
+
+          if (userProjects.length === 0 && userId) {
+            try {
+              const defaultProjectId = randomId()
+              const clientToken = randomId()
+              const { data: projectData, error: projectError } = await supabase
+                .from("projects")
+                .insert({
+                  id: defaultProjectId,
+                  name: "My First Project",
+                  client_name: null,
+                  client_token: clientToken,
+                  created_at: new Date().toISOString(),
+                })
+                .select()
+                .single()
+              if (projectError) throw projectError
+              const { error: memberError } = await supabase.from("project_members").insert({
+                id: randomId(),
+                project_id: defaultProjectId,
+                user_id: userId,
+                role: "owner",
+                created_at: new Date().toISOString(),
+              })
+              if (memberError) throw memberError
+              userProjects = [projectData]
+              setProjects(userProjects)
+              setCurrentProjectId(projectData.id)
+            } catch (err) {
+              console.error("Error auto-creating default project:", err)
+            }
+          } else {
+            setProjects(userProjects)
+          }
+        } catch (error) {
+          console.error("Error fetching projects:", error)
+        } finally {
+          setLoading(false)
+        }
+        return
+      }
       if (!user || !user.id || !session) return
       setLoading(true)
       try {
@@ -98,7 +159,7 @@ export function useProjectsState(currentUser: User | null) {
       }
     }
     fetchProjects()
-  }, [user, session, supabase])
+  }, [user, session, supabase, currentUser])
 
   // Set initial project once data is loaded
   useEffect(() => {
@@ -130,7 +191,7 @@ export function useProjectsState(currentUser: User | null) {
 
   // Project creation handler
   async function handleCreateProject() {
-    if (!newProjectName.trim() || !currentUser || !session) return
+    if (!newProjectName.trim() || !currentUser || (!BYPASS_CLERK && !session)) return
     setIsCreatingProject(true)
     try {
       const clientToken = randomId()

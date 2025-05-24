@@ -44,4 +44,17 @@ This project is a Next.js application deployed to Cloudflare Workers using the O
 - **App Logic:**
   - The app will never attempt to sign in or sign up if a session already exists. Users are redirected to the dashboard if already signed in.
 
-For more details, see the official OpenNext and Cloudflare documentation. 
+For more details, see the official OpenNext and Cloudflare documentation.
+
+## Development Clerk Bypass
+
+For automated testing or local development without Clerk, set the following environment variables in `.env.development`:
+
+```
+NEXT_PUBLIC_BYPASS_CLERK=true
+NEXT_PUBLIC_DEV_USER_EMAIL=will@feistyagency.com
+NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key_here
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key_here
+```
+
+This bypasses Clerk authentication and uses the provided Supabase service role key to authenticate requests.
