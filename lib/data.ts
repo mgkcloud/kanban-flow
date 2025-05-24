@@ -133,6 +133,57 @@ export async function getTasksByProject(projectId: string, sessionToken: string)
   }
 }
 
+export async function getDailyTasksForUser(userId: string): Promise<Task[]> {
+  try {
+    const supabase = supabaseAdminClient()
+
+    const start = new Date()
+    start.setUTCHours(0, 0, 0, 0)
+    const end = new Date(start)
+    end.setUTCDate(end.getUTCDate() + 1)
+
+    const { data: assigned } = await supabase
+      .from("tasks")
+      .select("*")
+      .eq("assignee_id", userId)
+
+    const { data: dueToday } = await supabase
+      .from("tasks")
+      .select("*")
+      .gte("due_date", start.toISOString())
+      .lt("due_date", end.toISOString())
+
+    const { data: activity } = await supabase
+      .from("activity_logs")
+      .select("task_id")
+      .neq("user_id", userId)
+      .gte("created_at", start.toISOString())
+
+    const activeIds = Array.from(new Set((activity || [])
+      .map((a) => a.task_id)
+      .filter((id): id is string => !!id)))
+
+    let activeTasks: Task[] = []
+    if (activeIds.length > 0) {
+      const { data } = await supabase
+        .from("tasks")
+        .select("*")
+        .in("id", activeIds)
+      activeTasks = (data || []) as Task[]
+    }
+
+    const map = new Map<string, Task>()
+    ;(assigned || []).forEach((t) => map.set(t.id, t as Task))
+    ;(dueToday || []).forEach((t) => map.set(t.id, t as Task))
+    activeTasks.forEach((t) => map.set(t.id, t as Task))
+
+    return Array.from(map.values())
+  } catch (err) {
+    console.error("error fetching daily tasks", err)
+    return []
+  }
+}
+
 export async function createTask(task: Omit<Task, "id" | "created_at">, userId: string): Promise<Task | null> {
   try {
     // Use admin client to bypass RLS

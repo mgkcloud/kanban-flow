@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback } from "react"
 import { CompactSidebar } from "@/components/compact-sidebar"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { KanbanBoard } from "@/components/kanban-board"
+import { DailyPlannerBoard } from "@/components/daily-planner-board"
 import { ImportTasks } from "@/components/import-tasks"
 import { ActivityStream } from "@/components/activity-stream"
 import { ProjectSharing } from "@/components/project-sharing"
@@ -26,6 +27,7 @@ import {
 import { useCurrentUserState } from "@/app/hooks/useCurrentUserState"
 import { useProjectsState } from "@/app/hooks/useProjectsState"
 import { useTasksState } from "@/app/hooks/useTasksState"
+import { useDailyTasks } from "@/app/hooks/useDailyTasks"
 import { OnboardingCard } from "@/components/OnboardingCard"
 import { ProjectModal } from "@/components/ProjectModal"
 import { TaskModal } from "@/components/TaskModal"
@@ -121,6 +123,8 @@ function HomeContent() {
     handleImportTasks,
     openEdit,
   } = useTasksState(currentUser, projects.find((p) => p.id === currentProjectId) || projects[0], users, session)
+
+  const { dailyTasks } = useDailyTasks(currentUser)
 
   const fetchSharingData = useCallback(async (projectId: string) => {
     setLoadingSharing(true)
@@ -570,6 +574,12 @@ function HomeContent() {
 
                 {projects.find((p) => p.id === currentProjectId) ? (
                   <>
+                    {dailyTasks.length > 0 && (
+                      <div className="mb-8">
+                        <h2 className="text-lg font-bold mb-2">Daily Planner</h2>
+                        <DailyPlannerBoard tasks={dailyTasks} users={users} currentUser={currentUser || undefined} />
+                      </div>
+                    )}
                     {projectTasks.length === 0 && (searchQuery || priorityFilter !== "all") ? (
                       <div className="flex items-center justify-center h-40 border border-dashed rounded-xl frosted-panel">
                         <p className="text-muted-foreground">No tasks match your filters</p>
